@@ -1,0 +1,29 @@
+# ChemSage — Python dependencies
+# Install into a fresh venv/conda env (Python 3.11+) on Apple Silicon.
+
+# --- Fine-tune + serve: MLX-LM (Apple Silicon / Metal) ---
+mlx
+mlx-lm                     # mlx_lm.lora (train), mlx_lm.fuse (merge), mlx_lm.server (serve)
+
+# --- Core / shared ---
+rdkit                      # cheminformatics ground truth (SMILES, properties, scaffolds)
+selfies                    # optional robust molecular string representation
+transformers>=4.46         # tokenisers / HF model metadata
+datasets>=3.0
+pyyaml
+pandas
+numpy
+
+# --- RAG layer ---
+chromadb                   # or: lancedb
+sentence-transformers      # local embeddings (or use an Ollama nomic-embed-text endpoint)
+pypdf                      # PDF corpus ingestion
+unstructured               # optional, richer document parsing
+
+# --- Evaluation / serving client ---
+requests                   # OpenAI-compatible calls to mlx_lm.server
+scikit-learn               # similarity / metrics helpers
+tqdm
+
+# Note: the fine-tune lane is fixed to MLX-LM (Apple Silicon). The NVIDIA/Unsloth path is not
+# used in this project. GGUF/Ollama is only needed for the optional Route B in merge_export.py.

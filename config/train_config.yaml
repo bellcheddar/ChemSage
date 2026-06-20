@@ -1,0 +1,52 @@
+# ChemSage QLoRA training configuration (MLX-LM native)
+#
+# This is a native mlx_lm.lora config: run it directly with
+#     mlx_lm.lora --config config/train_config.yaml --train
+# scripts/train_qlora.py wraps this and prepares the data directory first.
+#
+# Field names have drifted slightly between mlx-lm versions (e.g. lora_layers vs num_layers).
+# Before the first run, pull the example for your installed version and reconcile keys:
+#     curl -O https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/examples/lora_config.yaml
+
+# --- Model ---
+# Point at an MLX 4-bit model and mlx_lm.lora uses QLoRA automatically.
+# Either pull a prequantised one from mlx-community, or quantise yourself:
+#     mlx_lm.convert --hf-path Qwen/Qwen2.5-7B-Instruct -q
+model: "mlx-community/Qwen2.5-7B-Instruct-4bit"
+
+train: true
+fine_tune_type: "lora"          # "lora" (default), "dora", or "full"
+
+# --- Data ---
+# MLX expects a DIRECTORY containing train.jsonl and valid.jsonl (chat format:
+# one {"messages": [...]} object per line). test.jsonl is used by eval/eval_chem.py only.
+data: "data/sft"
+
+# --- Adapter output ---
+adapter_path: "adapters/chem_sage_lora"
+
+# --- LoRA parameters ---
+num_layers: 16                  # how many transformer layers to fine-tune (-1 = all)
+lora_parameters:
+  keys: ["self_attn.q_proj", "self_attn.k_proj", "self_attn.v_proj", "self_attn.o_proj",
+         "mlp.gate_proj", "mlp.up_proj", "mlp.down_proj"]   # all-linear analogue
+  rank: 16                      # r
+  scale: 16.0                   # MLX LoRA scale (NOT identical to HF alpha; example default ~20, tune)
+  dropout: 0.0
+
+# --- Optimisation ---
+# MLX counts iters (optimiser steps), not epochs.
+# iters approx = (num_train_examples / batch_size) * desired_epochs
+iters: 1000
+batch_size: 1
+learning_rate: 2.0e-4
+lr_schedule: null               # or a cosine schedule block; see the example config
+max_seq_length: 2048
+grad_checkpoint: true
+seed: 42
+
+# --- Reporting / eval / checkpoints ---
+steps_per_report: 10
+steps_per_eval: 100
+val_batches: 25
+save_every: 200

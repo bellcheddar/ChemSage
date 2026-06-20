@@ -1,0 +1,21 @@
+# Data and models (never commit corpora, weights, or adapters)
+data/corpus/
+data/sft/*.jsonl
+adapters/
+fused_model/
+*.gguf
+*.safetensors
+*.npz
+outputs/
+.chroma/
+*.lance/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+
+# OS
+.DS_Store
