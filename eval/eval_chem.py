@@ -2,72 +2,320 @@
 """
 eval_chem.py — chemistry-aware evaluation harness (Phase 7).
 
-Generic LLM evals miss what matters here. These metrics are cheap, automatic, and brutal:
+Queries an OpenAI-compatible endpoint (mlx_lm.server at http://localhost:8080/v1 by default)
+against the frozen test split and measures:
 
-  - SMILES validity rate : every SMILES the model emits must parse + canonicalise in RDKit.
-  - tool-call executability : every emitted code block must run without error.
-  - numerical fidelity : recompute stated properties with RDKit; they must match.
-  - retrieval faithfulness : answers grounded in corpus, not invented (manual or LLM-judge).
-  - win-rate vs base : side-by-side on a frozen prompt set.
+  - SMILES validity rate   : every MolFromSmiles() call in emitted code must parse in RDKit.
+  - Tool executability     : every RDKit code block must run without error (via tool_exec).
+  - Numerical fidelity     : stated MW/logP/HBD/HBA/TPSA values must match RDKit recomputation.
 
-Queries an OpenAI-compatible endpoint, so it works against mlx_lm.server (the native Mac serving
-route, default http://localhost:8080/v1) or any other OpenAI-compatible server.
+Writes an HTML scorecard (eval/scorecard.html) using the marcdeller.com brand palette.
 
 Usage:
-    mlx_lm.server --model fused_model --port 8080      # in another terminal
+    mlx_lm.server --model fused_model --port 8080   # in a separate terminal
     python eval/eval_chem.py --base-url http://localhost:8080/v1 --model fused_model
-
-Claude Code TODO:
-  - Implement query_model() with a POST to {base_url}/chat/completions.
-  - Run extracted code blocks through rag/tool_exec.py for the executability metric.
-  - Emit a one-page HTML scorecard (your vibe-coding stack: validity %, exec %, win-rate),
-    brand palette navy #1C244B / accent #467FF7.
 """
 
 import argparse
 import json
 import re
+import sys
+import textwrap
+from datetime import datetime
 from pathlib import Path
+
+import requests
 
 try:
     from rdkit import Chem
+    from rdkit.Chem import Descriptors, Lipinski, rdMolDescriptors
 except ImportError:
     raise SystemExit("RDKit is required: pip install rdkit")
 
-SMILES_IN_BLOCK = re.compile(r"MolFromSmiles\('([^']+)'\)")
+# Resolve the rag/ sibling directory so tool_exec is importable regardless of cwd
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from rag.tool_exec import extract_code, run_sandboxed
+
+SMILES_RE = re.compile(r"MolFromSmiles\(['\"]([^'\"]+)['\"]\)")
+# Match stated property values in prose: "MW 342.4" or "logP: 1.23" etc.
+PROP_RE   = re.compile(
+    r"(?P<prop>MW|logP|HBD|HBA|TPSA)\s*[=:]\s*(?P<val>[\d.]+)",
+    re.IGNORECASE,
+)
 
 
-def smiles_validity(model_output: str):
-    """Fraction of emitted SMILES that canonicalise. Returns (valid, total)."""
-    smis = SMILES_IN_BLOCK.findall(model_output)
+# ---------------------------------------------------------------------------
+# Model query
+# ---------------------------------------------------------------------------
+
+def query_model(base_url: str, model: str, messages: list[dict]) -> str:
+    url = base_url.rstrip("/") + "/chat/completions"
+    try:
+        resp = requests.post(
+            url,
+            json={"model": model, "messages": messages, "temperature": 0.2, "max_tokens": 1024},
+            timeout=60,
+        )
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"]
+    except requests.exceptions.ConnectionError:
+        return f"[error] cannot connect to {url} — is mlx_lm.server running?"
+    except Exception as e:
+        return f"[error] {e}"
+
+
+# ---------------------------------------------------------------------------
+# Metrics
+# ---------------------------------------------------------------------------
+
+def smiles_validity(output: str) -> tuple[int, int]:
+    """Count MolFromSmiles() calls in the output that produce a valid molecule."""
+    smis  = SMILES_RE.findall(output)
     valid = sum(1 for s in smis if Chem.MolFromSmiles(s) is not None)
     return valid, len(smis)
 
 
-def query_model(base_url: str, model: str, prompt: str) -> str:
-    """TODO: POST to {base_url}/chat/completions (OpenAI-compatible) and return assistant content."""
-    raise NotImplementedError("Wire up the OpenAI-compatible chat call (mlx_lm.server).")
+def tool_executability(output: str) -> tuple[int, int]:
+    """Count RDKit code blocks that run without error."""
+    rdkit_blocks = [b for b in extract_code(output) if "rdkit" in b.lower()]
+    if not rdkit_blocks:
+        return 0, 0
+    ok = sum(1 for b in rdkit_blocks if not run_sandboxed(b).startswith("[error]"))
+    return ok, len(rdkit_blocks)
 
+
+def numerical_fidelity(output: str) -> tuple[int, int]:
+    """Check stated MW/logP/HBD/HBA/TPSA values against RDKit recomputation.
+
+    Requires a MolFromSmiles() call in the same output so we know which molecule to check.
+    Tolerates a small floating-point delta (0.5 for MW/logP, 0 for integer descriptors).
+    """
+    smis = SMILES_RE.findall(output)
+    if not smis:
+        return 0, 0
+
+    # Use the first valid molecule found
+    mol = None
+    for s in smis:
+        mol = Chem.MolFromSmiles(s)
+        if mol is not None:
+            break
+    if mol is None:
+        return 0, 0
+
+    truth = {
+        "mw":   round(Descriptors.MolWt(mol), 1),
+        "logp": round(Descriptors.MolLogP(mol), 2),
+        "hbd":  Lipinski.NumHDonors(mol),
+        "hba":  Lipinski.NumHAcceptors(mol),
+        "tpsa": round(rdMolDescriptors.CalcTPSA(mol), 1),
+    }
+    tol = {"mw": 0.5, "logp": 0.1, "hbd": 0, "hba": 0, "tpsa": 0.5}
+
+    checked = ok = 0
+    for match in PROP_RE.finditer(output):
+        key   = match.group("prop").lower()
+        stated = float(match.group("val"))
+        if key not in truth:
+            continue
+        checked += 1
+        if abs(stated - truth[key]) <= tol[key]:
+            ok += 1
+
+    return ok, checked
+
+
+# ---------------------------------------------------------------------------
+# HTML scorecard
+# ---------------------------------------------------------------------------
+
+def _pct(num: int, denom: int) -> str:
+    return f"{num / denom:.0%}" if denom else "n/a"
+
+
+def _html_scorecard(results: list[dict], model: str, base_url: str, n_test: int) -> str:
+    smi_ok  = sum(r["smiles_valid"]  for r in results)
+    smi_tot = sum(r["smiles_total"]  for r in results)
+    exe_ok  = sum(r["exec_ok"]       for r in results)
+    exe_tot = sum(r["exec_total"]    for r in results)
+    fid_ok  = sum(r["fidelity_ok"]   for r in results)
+    fid_tot = sum(r["fidelity_total"] for r in results)
+
+    rows = ""
+    for i, r in enumerate(results[:100], 1):
+        q = r["prompt"]
+        q_display = (q[:90] + "…") if len(q) > 90 else q
+        rows += (
+            f"<tr>"
+            f"<td>{i}</td>"
+            f"<td class='q'>{q_display}</td>"
+            f"<td class='num'>{r['smiles_valid']}/{r['smiles_total']}</td>"
+            f"<td class='num'>{r['exec_ok']}/{r['exec_total']}</td>"
+            f"<td class='num'>{r['fidelity_ok']}/{r['fidelity_total']}</td>"
+            f"</tr>\n"
+        )
+
+    return textwrap.dedent(f"""\
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>ChemSage Eval — {datetime.now():%Y-%m-%d %H:%M}</title>
+        <style>
+          :root {{
+            --navy:   #1C244B;
+            --accent: #467FF7;
+            --bg:     #f5f7fb;
+            --text:   #1a1a2e;
+            --card:   #ffffff;
+            --border: #e4e8f0;
+          }}
+          * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+          body {{
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg); color: var(--text);
+            padding: 2.5rem 2rem; max-width: 1100px; margin: auto;
+          }}
+          h1   {{ color: var(--navy); font-size: 1.7rem; margin-bottom: .2rem; }}
+          .sub {{ color: #666; font-size: .85rem; margin-bottom: 2rem; }}
+          .cards {{ display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 2.5rem; }}
+          .card {{
+            background: var(--card); border-radius: 14px;
+            padding: 1.4rem 2rem; box-shadow: 0 2px 10px rgba(0,0,0,.06);
+            min-width: 160px; text-align: center; flex: 1;
+          }}
+          .card .val {{ font-size: 2.5rem; font-weight: 700; color: var(--accent); }}
+          .card .lbl {{ font-size: .8rem; color: #666; margin-top: .3rem; line-height: 1.4; }}
+          table {{
+            width: 100%; border-collapse: collapse;
+            background: var(--card); border-radius: 14px;
+            overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,.06);
+          }}
+          th {{
+            background: var(--navy); color: #fff;
+            text-align: left; padding: .7rem 1rem; font-size: .82rem; font-weight: 600;
+          }}
+          td {{ padding: .55rem 1rem; border-bottom: 1px solid var(--border); font-size: .8rem; }}
+          td.q   {{ max-width: 380px; word-break: break-word; }}
+          td.num {{ text-align: center; }}
+          tr:last-child td {{ border-bottom: none; }}
+          tr:nth-child(even) {{ background: #f9fafd; }}
+          .footer {{ margin-top: 2rem; font-size: .72rem; color: #aaa; }}
+          a {{ color: var(--accent); text-decoration: none; }}
+          a:hover {{ text-decoration: underline; }}
+        </style>
+        </head>
+        <body>
+        <h1>ChemSage Evaluation Scorecard</h1>
+        <div class="sub">
+          Model: <b>{model}</b> &nbsp;|&nbsp; Endpoint: {base_url}
+          &nbsp;|&nbsp; {datetime.now():%Y-%m-%d %H:%M}
+          &nbsp;|&nbsp; {n_test} test examples
+        </div>
+        <div class="cards">
+          <div class="card">
+            <div class="val">{_pct(smi_ok, smi_tot)}</div>
+            <div class="lbl">SMILES validity<br>({smi_ok}/{smi_tot} SMILES parsed)</div>
+          </div>
+          <div class="card">
+            <div class="val">{_pct(exe_ok, exe_tot)}</div>
+            <div class="lbl">Tool executability<br>({exe_ok}/{exe_tot} RDKit blocks ran)</div>
+          </div>
+          <div class="card">
+            <div class="val">{_pct(fid_ok, fid_tot)}</div>
+            <div class="lbl">Numerical fidelity<br>({fid_ok}/{fid_tot} props matched RDKit)</div>
+          </div>
+          <div class="card">
+            <div class="val">{n_test}</div>
+            <div class="lbl">Test examples<br>evaluated</div>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Prompt</th>
+              <th>SMILES ok/total</th>
+              <th>Exec ok/total</th>
+              <th>Fidelity ok/total</th>
+            </tr>
+          </thead>
+          <tbody>
+        {rows}  </tbody>
+        </table>
+        <div class="footer">
+          Generated by ChemSage eval harness &nbsp;·&nbsp;
+          Marc C. Deller, D.Phil. &nbsp;·&nbsp;
+          <a href="https://marcdeller.com">marcdeller.com</a>
+        </div>
+        </body>
+        </html>
+    """)
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--base-url", default="http://localhost:8080/v1")
-    ap.add_argument("--model", default="fused_model")
-    ap.add_argument("--test", type=Path, default=Path("data/sft/test.jsonl"))
+    ap.add_argument("--model",    default="fused_model")
+    ap.add_argument("--test",     type=Path, default=Path("data/sft/test.jsonl"))
+    ap.add_argument("--out",      type=Path, default=Path("eval/scorecard.html"))
+    ap.add_argument("--limit",    type=int,  default=None,
+                    help="Evaluate only the first N examples (useful for a quick smoke-test)")
     args = ap.parse_args()
 
-    total_valid = total_smiles = 0
-    for line in args.test.read_text().splitlines():
-        ex = json.loads(line)
-        prompt = next(m["content"] for m in ex["messages"] if m["role"] == "user")
-        out = query_model(args.base_url, args.model, prompt)   # TODO
-        v, t = smiles_validity(out)
-        total_valid += v
-        total_smiles += t
+    if not args.test.exists():
+        raise SystemExit(
+            f"Test set not found: {args.test}. Run scripts/build_dataset.py first."
+        )
 
-    rate = (total_valid / total_smiles) if total_smiles else float("nan")
-    print(f"SMILES validity: {total_valid}/{total_smiles} = {rate:.1%}")
-    # TODO: executability, numerical fidelity, win-rate; write HTML scorecard.
+    examples = [
+        json.loads(line) for line in args.test.read_text().splitlines() if line.strip()
+    ]
+    if args.limit:
+        examples = examples[:args.limit]
+    if not examples:
+        raise SystemExit("Test file is empty.")
+
+    print(f"Evaluating {len(examples)} examples against {args.base_url} ({args.model}) ...")
+    results = []
+    for i, ex in enumerate(examples, 1):
+        messages = [m for m in ex["messages"] if m["role"] in ("system", "user")]
+        prompt   = next((m["content"] for m in messages if m["role"] == "user"), "")
+        output   = query_model(args.base_url, args.model, messages)
+
+        sv,  st  = smiles_validity(output)
+        ev,  et  = tool_executability(output)
+        fv,  ft  = numerical_fidelity(output)
+        results.append({
+            "prompt":         prompt,
+            "output":         output,
+            "smiles_valid":   sv, "smiles_total":   st,
+            "exec_ok":        ev, "exec_total":      et,
+            "fidelity_ok":    fv, "fidelity_total":  ft,
+        })
+        if i % 10 == 0 or i == len(examples):
+            print(f"  {i}/{len(examples)}")
+
+    html = _html_scorecard(results, args.model, args.base_url, len(examples))
+    args.out.parent.mkdir(parents=True, exist_ok=True)
+    args.out.write_text(html)
+
+    smi_ok  = sum(r["smiles_valid"]  for r in results)
+    smi_tot = sum(r["smiles_total"]  for r in results)
+    exe_ok  = sum(r["exec_ok"]       for r in results)
+    exe_tot = sum(r["exec_total"]    for r in results)
+    fid_ok  = sum(r["fidelity_ok"]   for r in results)
+    fid_tot = sum(r["fidelity_total"] for r in results)
+
+    print(f"\nSMILES validity   : {smi_ok}/{smi_tot} = {_pct(smi_ok, smi_tot)}")
+    print(f"Tool executability: {exe_ok}/{exe_tot} = {_pct(exe_ok, exe_tot)}")
+    print(f"Numerical fidelity: {fid_ok}/{fid_tot} = {_pct(fid_ok, fid_tot)}")
+    print(f"\nScorecard → {args.out}")
 
 
 if __name__ == "__main__":
