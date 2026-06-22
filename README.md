@@ -28,6 +28,7 @@ See **[`PROJECT_PLAN.md`](PROJECT_PLAN.md)** for the full step-by-step build (ph
 | 2 | **RAG first** (ship this alone) | `scripts/ingest_rag.py` |
 | 2a | Download ChEMBL corpus | `scripts/download_chembl.py` + `scripts/download_chembl_extended.py` |
 | 2b | Download PubChem corpus | `scripts/download_pubchem.py` |
+| 2c | Download PDB corpus | `scripts/download_pdb.py` + `scripts/download_pdb_supplement.py` |
 | 3 | Build + validate SFT dataset | `scripts/build_dataset.py` |
 | 4 | QLoRA fine-tune | `mlx_lm.lora --config config/train_config.yaml --train` |
 | 5 | Fuse + serve | `mlx_lm.fuse` → `mlx_lm.server --port 8081` |
@@ -64,6 +65,19 @@ The `data/corpus/` directory contains the full retrieval knowledge base — tool
 | `adme_cyp_hts.csv` | 19,803 | NCATS Caco-2 permeability, P-gp efflux, CYP2C9 inhibition HTS |
 | `bindingdb_affinities.csv` | — | BindingDB Ki/IC50/Kd (literature-curated) |
 | `nci60_gi50.csv` | — | NCI-60 cancer cell line growth inhibition |
+
+### PDB (`data/corpus/pdb/`, ~111 MB)
+
+| File | Records | Contents |
+|---|---|---|
+| `pdb_all_entries.csv` | 255,239 | All PDB structures: ID, method, resolution, compound, organism, deposit date |
+| `pdb_ligands_all.csv` | 16,171 | All unique PDB ligands with SMILES, InChI, InChIKey, formula, MW, type, ChEMBL/DrugBank/PubChem cross-references |
+| `pdb_ligands_druglike.csv` | 382 | Drug-like CCD subset (MW 100–800 Da, non-polymer, with SMILES) |
+| `pdb_ligand_structure_pairs.csv` | 121,541 | Protein-ligand pairs: which ligands are bound in which structures (with resolution + method) |
+| `pdb_druglike_structure_pairs.csv` | 1,671 | Drug-like protein-ligand pairs only |
+| `pdb_binding_affinities.csv` | 46,885 | Measured Kd/Ki/IC50 from PDBbind-annotated structures (9,209 entries) |
+| `sifts_pdb_uniprot.csv` | 965,937 | SIFTS: PDB chain → UniProt accession (canonical target identity bridge) |
+| `sifts_pdb_pfam.csv` | 1,022,861 | SIFTS: PDB chain → Pfam domain family (fold-level annotation) |
 
 ## Stack
 
