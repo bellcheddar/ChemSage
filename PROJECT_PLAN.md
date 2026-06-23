@@ -235,8 +235,8 @@ tuned model reaching for tools and respecting SMILES validity.
 
 **Route B (optional, only if you specifically want Ollama):** fuse with `--de-quantize` to fp16
 safetensors, then convert with llama.cpp's `convert_hf_to_gguf.py` (which supports Qwen2), then
-`ollama create`. `scripts/merge_export.py` writes a Modelfile for this. Direct `--export-gguf` from
-`mlx_lm.fuse` only works for Llama/Mistral/Mixtral, so a Qwen base needs the llama.cpp step.
+`ollama create chem_sage -f <Modelfile>`. Direct `--export-gguf` from `mlx_lm.fuse` only works
+for Llama/Mistral/Mixtral, so a Qwen base needs the llama.cpp step.
 
 **Exit test:** `mlx_lm.server` is up and answers a chemistry prompt (via curl to `/v1/chat/
 completions`) with a tool-emitting response.

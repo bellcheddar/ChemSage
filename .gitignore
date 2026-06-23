@@ -3,12 +3,18 @@ data/corpus/
 data/sft/*.jsonl
 adapters/
 fused_model/
+models/
+ChemSage/
+exports/
 *.gguf
 *.safetensors
 *.npz
 outputs/
 .chroma/
 *.lance/
+
+# Secrets
+.webui_secret_key
 
 # Python
 __pycache__/

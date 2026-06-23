@@ -1,54 +1,85 @@
 # ChemSage QLoRA training configuration (MLX-LM native)
 #
-# This is a native mlx_lm.lora config: run it directly with
-#     mlx_lm.lora --config config/train_config.yaml --train
-# scripts/train_qlora.py wraps this and prepares the data directory first.
+# Run with: mlx_lm.lora --config config/train_config.yaml --train
 #
-# Field names have drifted slightly between mlx-lm versions (e.g. lora_layers vs num_layers).
-# Before the first run, pull the example for your installed version and reconcile keys:
-#     curl -O https://raw.githubusercontent.com/ml-explore/mlx-lm/main/mlx_lm/examples/lora_config.yaml
+# Merged from expert recommendations + session-tested settings.
+# Key design rationale:
+#
+#   RSLoRA (use_rslora: true) normalises LoRA updates by 1/√rank rather than
+#   1/rank. With rank=32 and lr=1e-4, the effective step size is ≈ 1.77e-5 —
+#   more conservative than our previous lr=3e-5 without RSLoRA. The expert's
+#   lr=1e-4 is therefore safe in this combination.
+#
+#   iters=750 with batch_size=4 → 3,000 sample steps ≈ 1.25 epochs over the
+#   2,400-example training split. The cosine schedule with 50-step warmup
+#   keeps the first ~50 steps well below peak lr, preventing the early
+#   instability we saw with a flat schedule.
+#
+#   weight_decay=0.01 adds AdamW L2 regularisation — important for a small
+#   corpus where overfitting is the primary risk after stability.
+#
+#   Monitor val_loss at steps 25, 50, 75. If it rises past step 200,
+#   stop (Ctrl-C) and use the checkpoint at the lowest val loss.
 
 # --- Model ---
-# Point at an MLX 4-bit model and mlx_lm.lora uses QLoRA automatically.
-# Either pull a prequantised one from mlx-community, or quantise yourself:
-#     mlx_lm.convert --hf-path Qwen/Qwen2.5-7B-Instruct -q
 model: "mlx-community/Qwen2.5-7B-Instruct-4bit"
 
 train: true
-fine_tune_type: "lora"          # "lora" (default), "dora", or "full"
+fine_tune_type: "lora"
 
 # --- Data ---
-# MLX expects a DIRECTORY containing train.jsonl and valid.jsonl (chat format:
-# one {"messages": [...]} object per line). test.jsonl is used by eval/eval_chem.py only.
 data: "data/sft"
 
 # --- Adapter output ---
 adapter_path: "adapters/chem_sage_lora"
 
-# --- LoRA parameters ---
-# Reduced from rank=16/num_layers=16 to avoid mode collapse seen in earlier runs.
-# Smaller rank = fewer trainable params = safer for a 3000-example corpus.
-num_layers: 8                   # fine-tune last 8 transformer layers only
+# --- LoRA / RSLoRA ---
+# Expert: rank=32, scale=64, use_rslora=true → effective alpha = 64/√32 ≈ 11.3
+# All 7 projection matrices adapted across the top 16 transformer layers.
+num_layers: 16
 lora_parameters:
-  keys: ["self_attn.q_proj", "self_attn.k_proj", "self_attn.v_proj", "self_attn.o_proj",
-         "mlp.gate_proj", "mlp.up_proj", "mlp.down_proj"]
-  rank: 8                       # r — halved; keeps adapter < 50 MB
-  scale: 8.0                    # scale matches rank
-  dropout: 0.05                 # light dropout guards against overfitting on small corpus
+  keys:
+    - "self_attn.q_proj"
+    - "self_attn.k_proj"
+    - "self_attn.v_proj"
+    - "self_attn.o_proj"
+    - "mlp.gate_proj"
+    - "mlp.up_proj"
+    - "mlp.down_proj"
+  rank: 32
+  scale: 64.0
+  dropout: 0.05
+
+use_rslora: true     # requires mlx-lm >= 0.12; remove if your version rejects it
+use_dora: false
 
 # --- Optimisation ---
-# iters=300 ≈ 3 passes over a 3000-example corpus at batch_size=4
-# lr=3e-5 (conservative — previous 5e-5 run showed early instability)
-iters: 300
+iters: 750
 batch_size: 4
-learning_rate: 3.0e-5
-lr_schedule: null
+# Collapse observed at peak LR 1e-4 (onset ~6e-5 during warmup).
+# With RSLoRA scale=64/rank=32, effective update magnitude = lr × 11.3.
+# Peak LR 2e-5 → effective 2.26e-4, roughly 3× below the collapse threshold.
+learning_rate: 2.0e-5
+
+# Cosine decay with linear warmup.
+# MLX-LM format: arguments=[peak_lr, total_decay_steps]
+lr_schedule:
+  name: cosine_decay
+  warmup: 50
+  arguments: [2.0e-5, 750]
+
+weight_decay: 0.01        # AdamW L2 regularisation
+
+# gradient_accumulation_steps is not a native MLX-LM config key in all versions.
+# To get effective_batch=16, set batch_size: 8 if you have >=24 GB RAM.
+# At 16 GB unified memory with grad_checkpoint, batch_size=4 is the safe default.
+
 max_seq_length: 2048
-grad_checkpoint: true
+grad_checkpoint: true     # essential on 16-GB Apple Silicon
 seed: 42
 
 # --- Reporting / eval / checkpoints ---
 steps_per_report: 10
-steps_per_eval: 50
+steps_per_eval: 25
 val_batches: 25
-save_every: 50
+save_every: 25            # reduced from 50 so the best checkpoint is never >25 steps away

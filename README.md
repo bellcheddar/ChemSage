@@ -79,6 +79,40 @@ The `data/corpus/` directory contains the full retrieval knowledge base — tool
 | `sifts_pdb_uniprot.csv` | 965,937 | SIFTS: PDB chain → UniProt accession (canonical target identity bridge) |
 | `sifts_pdb_pfam.csv` | 1,022,861 | SIFTS: PDB chain → Pfam domain family (fold-level annotation) |
 
+## Recent changes
+
+### Corpus fast-path (grounded lookup without LLM)
+
+All 17 corpus CSVs are now searchable directly from the chat CLI via a keyword fast-path that bypasses the LLM entirely. Enumeration queries ("list all EGFR structures", "find erlotinib", "show imatinib") are routed to a registry-based lookup (`rag/corpus_lookup.py`) that word-boundary searches each file and returns verified data — zero hallucination risk on factual retrieval.
+
+Key behaviours:
+- Up to 500 matching rows loaded per source; pageable in 50-row pages
+- Interactive source menu: results from multiple files are presented as a numbered list; the user picks which table to view
+- CSV export from any table to a chosen path (default: Desktop)
+- PDB binding affinity cross-reference: queries against `pdb_all_entries.csv` to resolve target names to PDB IDs, then joins `pdb_binding_affinities.csv` — surfaces measured Kd/Ki/IC50 for targets with no direct compound column
+- Word-boundary regex throughout (`\bEGFR\b`) prevents substring false-positives (VEGFR matching EGFR)
+
+### QLoRA retraining
+
+The model was retrained from scratch after the initial run collapsed at step 50 (val loss 45.4). Root cause: RSLoRA scales updates by `scale/√rank`, not `scale/rank`. At rank 32, scale 64, the effective multiplier is ≈11.3×, making the expert-recommended `lr=1e-4` equivalent to ~37× the previously stable learning rate.
+
+Final config: `lr=2e-5`, `rank=32`, `scale=64`, `use_rslora=true`, cosine decay with 50-step warmup, 750 iterations. Best checkpoint: step 675, val loss **0.389**. Fused model saved to `models/chem_sage_fused/` (4.0 GB).
+
+### Chat CLI (`scripts/chat.py`)
+
+- **RAG hybrid loop**: top-5 corpus chunks retrieved per query via ChromaDB (BAAI/bge-base-en-v1.5 embeddings, 55k chunks), injected into the system prompt as grounded context
+- **RDKit auto-execution**: any `python` code block in the model response is executed live; computed values printed below the response
+- **Identity grounding**: system prompt attributes ChemSage to Marc Deller and instructs the model not to claim another origin
+- **Hallucination guard**: system prompt prohibits inventing PDB IDs, SMILES, ChEMBL IDs, or measured values not present in the retrieved context
+
+### UI and terminal output
+
+- ASCII art banner (`MARCDELLER.COM`, `small_slant` font) in bold cyan on startup
+- Coloured `bouncingBar` progress spinner (with elapsed timer) for initialisation, model load, and retriever load — all third-party library output suppressed during loading (`stdout`/`stderr` redirect + `logging.disable`)
+- Rich Markdown rendering for LLM responses: syntax-highlighted code blocks (`monokai`), formatted tables, bold/italic
+- Tabulate `rounded_outline` tables with left-aligned columns for all corpus results
+- SMILES and InChI columns truncated to 48 characters to prevent terminal overflow
+
 ## Stack
 
 Everything runs locally on **Apple Silicon** via **MLX-LM** (`mlx_lm.lora` to train, `mlx_lm.fuse`
