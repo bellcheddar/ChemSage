@@ -11,6 +11,7 @@ Usage:
 
 import argparse
 import subprocess
+import sys
 import yaml
 from pathlib import Path
 
@@ -18,14 +19,17 @@ from pathlib import Path
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", type=Path, default=Path("config/train_config.yaml"))
-    ap.add_argument("--save-path", default="fused_model")
+    ap.add_argument("--save-path", default="chem_sage_32b")
     args = ap.parse_args()
 
     cfg = yaml.safe_load(args.config.read_text())
     base    = cfg["model"]
-    adapter = cfg.get("adapter_path", "adapters/chem_sage_lora")
+    adapter = cfg.get("adapter_path", "adapters/chem_sage_32b_lora")
+    config_dir = args.config.resolve().parent.parent
+    adapter = str(config_dir / adapter)
+    save_path = str(config_dir / args.save_path) if not Path(args.save_path).is_absolute() else args.save_path
 
-    cmd = ["mlx_lm.fuse", "--model", base, "--adapter-path", adapter, "--save-path", args.save_path]
+    cmd = [sys.executable, "-m", "mlx_lm", "fuse", "--model", base, "--adapter-path", adapter, "--save-path", save_path]
     print("Fusing:", " ".join(cmd))
     try:
         subprocess.run(cmd, check=True)

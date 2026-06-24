@@ -22,7 +22,7 @@
 #   stop (Ctrl-C) and use the checkpoint at the lowest val loss.
 
 # --- Model ---
-model: "mlx-community/Qwen2.5-7B-Instruct-4bit"
+model: "mlx-community/Qwen2.5-32B-Instruct-4bit"
 
 train: true
 fine_tune_type: "lora"
@@ -31,12 +31,12 @@ fine_tune_type: "lora"
 data: "data/sft"
 
 # --- Adapter output ---
-adapter_path: "adapters/chem_sage_lora"
+adapter_path: "adapters/chem_sage_32b_lora"
 
 # --- LoRA / RSLoRA ---
 # Expert: rank=32, scale=64, use_rslora=true → effective alpha = 64/√32 ≈ 11.3
-# All 7 projection matrices adapted across the top 16 transformer layers.
-num_layers: 16
+# All 7 projection matrices adapted across the top 32 transformer layers.
+num_layers: 32
 lora_parameters:
   keys:
     - "self_attn.q_proj"

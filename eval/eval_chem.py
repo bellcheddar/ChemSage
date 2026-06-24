@@ -45,6 +45,17 @@ PROP_RE   = re.compile(
 
 
 # ---------------------------------------------------------------------------
+# System prompt (injected if absent from test examples)
+# ---------------------------------------------------------------------------
+
+_EVAL_SYSTEM = (
+    "You are ChemSage, a chemistry-specialised AI assistant for drug discovery. "
+    "For exact physicochemical properties (MW, logP, HBD, HBA, TPSA, QED), always compute with RDKit — "
+    "emit a ```python``` code block using the input SMILES; do not recall numbers from memory. "
+    "NEVER invent SMILES strings, PDB IDs, ChEMBL IDs, or measured values."
+)
+
+# ---------------------------------------------------------------------------
 # Model query
 # ---------------------------------------------------------------------------
 
@@ -54,7 +65,7 @@ def query_model(base_url: str, model: str, messages: list[dict]) -> str:
         resp = requests.post(
             url,
             json={"model": model, "messages": messages, "temperature": 0.2, "max_tokens": 1024},
-            timeout=60,
+            timeout=120,
         )
         resp.raise_for_status()
         return resp.json()["choices"][0]["message"]["content"]
@@ -281,16 +292,33 @@ def main():
     if not examples:
         raise SystemExit("Test file is empty.")
 
-    print(f"Evaluating {len(examples)} examples against {args.base_url} ({args.model}) ...")
+    from tqdm import tqdm
+
+    print(f"Evaluating {len(examples)} examples against {args.base_url} ({args.model})")
     results = []
-    for i, ex in enumerate(examples, 1):
+    errors = 0
+    smi_running = [0, 0]
+    exe_running = [0, 0]
+    fid_running = [0, 0]
+
+    pbar = tqdm(examples, unit="ex", dynamic_ncols=True)
+    for ex in pbar:
         messages = [m for m in ex["messages"] if m["role"] in ("system", "user")]
+        if not any(m["role"] == "system" for m in messages):
+            messages.insert(0, {"role": "system", "content": _EVAL_SYSTEM})
         prompt   = next((m["content"] for m in messages if m["role"] == "user"), "")
         output   = query_model(args.base_url, args.model, messages)
+
+        if output.startswith("[error]"):
+            errors += 1
 
         sv,  st  = smiles_validity(output)
         ev,  et  = tool_executability(output)
         fv,  ft  = numerical_fidelity(output)
+        smi_running[0] += sv; smi_running[1] += st
+        exe_running[0] += ev; exe_running[1] += et
+        fid_running[0] += fv; fid_running[1] += ft
+
         results.append({
             "prompt":         prompt,
             "output":         output,
@@ -298,8 +326,13 @@ def main():
             "exec_ok":        ev, "exec_total":      et,
             "fidelity_ok":    fv, "fidelity_total":  ft,
         })
-        if i % 10 == 0 or i == len(examples):
-            print(f"  {i}/{len(examples)}")
+        pbar.set_postfix_str(
+            f"SMILES {smi_running[0]}/{smi_running[1]}  "
+            f"Exec {exe_running[0]}/{exe_running[1]}  "
+            f"Fid {fid_running[0]}/{fid_running[1]}"
+            + (f"  err={errors}" if errors else ""),
+            refresh=True,
+        )
 
     html = _html_scorecard(results, args.model, args.base_url, len(examples))
     args.out.parent.mkdir(parents=True, exist_ok=True)

@@ -3,6 +3,7 @@ data/corpus/
 data/sft/*.jsonl
 adapters/
 fused_model/
+chem_sage_32b/
 models/
 ChemSage/
 exports/

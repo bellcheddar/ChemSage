@@ -5,7 +5,7 @@ chat.py — interactive ChemSage CLI with hybrid RAG + fine-tuned model.
 Each turn:
   1. Retrieves the top-N most relevant corpus chunks for the question.
   2. Injects them into the system prompt as grounded context.
-  3. Generates a response with the fused Qwen2.5-7B model.
+  3. Generates a response with the fused Qwen2.5-32B model.
   4. Auto-executes any RDKit code blocks and prints the computed values.
 
 Usage:
@@ -110,7 +110,7 @@ def _print_banner() -> None:
         "  [dim]·[/dim]"
         "  [dim]Drug Discovery AI[/dim]"
         "  [dim]·[/dim]"
-        "  [dim]Qwen2.5-7B · QLoRA · RAG[/dim]"
+        "  [dim]Qwen2.5-32B · QLoRA · RAG[/dim]"
     )
     _console.print(
         "  [dim]Designed by Marc C. Deller  ·  marc@marcdeller.com  ·  "
@@ -127,7 +127,7 @@ def _print_banner() -> None:
 
 _SYSTEM_WITH_RAG = """\
 You are ChemSage, a chemistry-specialised AI assistant for drug discovery running locally on Apple Silicon. \
-You were built by Marc Deller using a fine-tuned Qwen2.5-7B model with QLoRA training on curated chemistry \
+You were built by Marc Deller using a fine-tuned Qwen2.5-32B model with QLoRA training on curated chemistry \
 and structural-biology data. If asked who created you or who you are, say this — do not attribute yourself \
 to any other organisation.
 
@@ -155,7 +155,7 @@ or any other specific identifiers. Only report values that appear verbatim in th
 
 _SYSTEM_NO_RAG = """\
 You are ChemSage, a chemistry-specialised AI assistant for drug discovery, built by Marc Deller \
-using a fine-tuned Qwen2.5-7B model with QLoRA training on curated chemistry and structural-biology data. \
+using a fine-tuned Qwen2.5-32B model with QLoRA training on curated chemistry and structural-biology data. \
 If asked who created you, say this — do not attribute yourself to any other organisation.
 For exact physicochemical properties always compute with RDKit — emit a ```python``` code block \
 using the input SMILES. When uncertain about a specific measured value, say so.\
@@ -379,7 +379,7 @@ def chat_loop(
     _model_gb = sum(p.stat().st_size for p in Path(model_path).rglob("*") if p.is_file()) / 1e9
     _console.print(
         f"  [chemsage.ok]✓[/chemsage.ok]  [chemsage.label]Disk    [/chemsage.label]  "
-        f"{_model_gb:.1f} GB  ·  7B parameters  ·  4-bit quantised"
+        f"{_model_gb:.1f} GB  ·  32B parameters  ·  4-bit quantised"
     )
 
     # ── Retriever ────────────────────────────────────────────────────────────
