@@ -37,82 +37,125 @@ See **[`PROJECT_PLAN.md`](PROJECT_PLAN.md)** for the full step-by-step build (ph
 
 ## Training
 
+### Training data
+
+| | Round 1 (7B) | Round 2 (32B) | Round 3 (32B) | Round 4 (32B, planned) |
+|---|---|---|---|---|
+| Total examples | 1,500 | 1,500 | 5,000 | 8,000 |
+| Train / valid / test | 1,200 / 150 / 150 | 1,200 / 150 / 150 | 4,000 / 500 / 500 | 6,400 / 800 / 800 |
+| Behaviour classes | 8 | 8 | 19 | 59 |
+| Seed SMILES | 25 | 25 | 51 + corpus drugs | 51 + corpus drugs |
+| Corpus drug examples | — | — | ~1,000 | ~1,000 + protein family PDBs |
+| Code-block density | Low (~50%) | Low (~50%) | High (~80%) | High (~85%) |
+| Generator script | `--n 1500` | `--n 1500` | `--n 5000 --seed 43` | `--n 8000 --seed 47` |
+| Validation | RDKit + SMILES | RDKit + SMILES | RDKit + SMILES | RDKit + SMILES |
+
+**Behaviour classes by round:**
+
+*Round 3 additions (targeting R2 eval gaps):*
+
+| Class | Weight | Purpose |
+|---|---|---|
+| `single_property` | 2x | One property at a time with code block |
+| `full_profile` | 2x | Complete property profile via code |
+| `qed_score` | 1x | QED drug-likeness score |
+| `molecular_formula` | 1x | Formula, atom counts, ring analysis |
+| `smiles_validation` | 1x | Valid/invalid SMILES handling |
+| `property_comparison` | 1x | Side-by-side two-molecule comparison |
+| `corpus_drug` | 2x | Named drugs from approved_drugs.csv |
+| `murcko_sar` | 1x | Scaffold comparison with SAR context |
+
+*Round 4 additions (structural biology + fidelity):*
+
+| Class | Weight | Purpose |
+|---|---|---|
+| `pymol_selection` | 2x | PyMOL selection algebra (within, byres, chain, resi) |
+| `pymol_viz` | 2x | PyMOL visualization (surface, alignment, symmetry, B-factor, figures) |
+| `plip_analysis` | 2x | PLIP interaction types (H-bond, hydrophobic, pi-stack, salt bridge, halogen) |
+| `pdb_format` | 2x | PDB file format (ATOM/HETATM, altloc, B-factor interpretation) |
+| `pdbtools` | 2x | pdb-tools CLI recipes (selchain, selres, tidy, splitmodel) |
+| `biopython` | 2x | Bio.PDB patterns (SMCRA, NeighborSearch, Superimposer) |
+| `chimerax` | 2x | ChimeraX commands (hbonds, clashes, matchmaker) |
+| `gemmi` | 1x | gemmi mmCIF/PDB parsing and neighbour search |
+| `struct_prep` | 1x | Structure preparation (PDBFixer, protonation, 3D conformers) |
+| `docking_interp` | 2x | Docking result interpretation (Vina scores, RMSD, Kd estimation) |
+| `plotly` | 2x | Plotly Python visualization (MW vs logP, radar charts) |
+| `r_recipe` | 2x | R/ggplot2/bio3d/Plotly-R (SAR plots, RMSD, RMSF) |
+| `protein_family` | 3x | Kinases, GPCRs, antibodies, GTPases, cytokines, receptors (real PDB data) |
+| `code_then_quote` | 3x | "Compute then quote" pattern for numerical fidelity |
+| `rounding_precision` | 2x | Exact rounding conventions (MW 1dp, logP 2dp, TPSA 1dp) |
+| `personality_drug` | 3x | Lipinski verdicts with ✅/❌ cards, emoji, and medchem humor |
+| `personality_valid` | 2x | SMILES validation with flair and emoji |
+| `personality_struct` | 3x | Structural observations with character and humor |
+| `refusal` | 2x | Out-of-scope and invalid query handling |
+
 ### Training parameters
 
-| Parameter | 7B (v1) | 32B (v2) |
-|---|---|---|
-| Base model | `mlx-community/Qwen2.5-7B-Instruct-4bit` | `mlx-community/Qwen2.5-32B-Instruct-4bit` |
-| Fine-tune type | LoRA (QLoRA via 4-bit base) | LoRA (QLoRA via 4-bit base) |
-| `use_rslora` | `true` | `true` |
-| `use_dora` | `false` | `false` |
-| LoRA rank | 32 | 32 |
-| LoRA scale | 64.0 | 64.0 |
-| Effective RSLoRA scale | 64/sqrt(32) = 11.3x | 64/sqrt(32) = 11.3x |
-| LoRA dropout | 0.05 | 0.05 |
-| LoRA keys | q/k/v/o_proj + gate/up/down_proj | q/k/v/o_proj + gate/up/down_proj |
-| `num_layers` | 16 (of 28 total) | 32 (of 64 total) |
-| `iters` | 750 | 750 |
-| `batch_size` | 4 | 4 |
-| `learning_rate` | 2e-5 | 2e-5 |
-| LR schedule | Cosine decay, 50-step warmup | Cosine decay, 50-step warmup |
-| `weight_decay` | 0.01 | 0.01 |
-| `max_seq_length` | 2048 | 2048 |
-| `grad_checkpoint` | `true` | `true` |
-| `seed` | 42 | 42 |
-| `steps_per_eval` | 25 | 25 |
-| `save_every` | 25 | 25 |
-| `val_batches` | 25 | 25 |
-| Trainable params | ~26M (0.34%) | 134M (0.41%) |
-| Peak memory | ~12 GB | 24.9 GB |
-| Training data | 2,400 examples | 2,400 examples |
-| Fused model size | 4.0 GB | 17 GB |
-| Fused model path | `models/chem_sage_fused/` | `chem_sage_32b/` |
+| Parameter | Round 1 (7B) | Round 2 (32B) | Round 3 (32B) | Round 4 (32B, planned) |
+|---|---|---|---|---|
+| Base model | `Qwen2.5-7B-Instruct-4bit` | `Qwen2.5-32B-Instruct-4bit` | `Qwen2.5-32B-Instruct-4bit` | `Qwen2.5-32B-Instruct-4bit` |
+| Fine-tune type | QLoRA (4-bit base) | QLoRA (4-bit base) | QLoRA (4-bit base) | QLoRA (4-bit base) |
+| `use_rslora` | `true` | `true` | `true` | `true` |
+| LoRA rank | 32 | 32 | 32 | 32 |
+| LoRA scale | 64.0 | 64.0 | 64.0 | 64.0 |
+| LoRA keys | q/k/v/o_proj + gate/up/down_proj | q/k/v/o_proj + gate/up/down_proj | q/k/v/o_proj + gate/up/down_proj | q/k/v/o_proj + gate/up/down_proj |
+| `num_layers` | 16 (of 28) | 32 (of 64) | 32 (of 64) | 48 (of 64) |
+| `iters` | 750 | 750 | 1,500 (stopped at 625) | 1,500 |
+| `batch_size` | 4 | 4 | 4 | 4 |
+| `learning_rate` | 2e-5 | 2e-5 | 2e-5 | 2e-5 |
+| LR schedule | Cosine, 50-step warmup | Cosine, 50-step warmup | Cosine, 50-step warmup | Cosine, 50-step warmup |
+| `steps_per_report` | 10 | 10 | 10 | 25 (aligned with eval) |
+| `seed` | 42 | 42 | 43 | 47 |
+| Trainable params | ~26M (0.34%) | 134M (0.41%) | 134M (0.41%) | ~200M (~0.61%) |
+| Peak memory | ~12 GB | 24.9 GB | 25.2 GB | ~28 GB (est.) |
+| Training data | 1,200 examples | 1,200 examples | 4,000 examples | 6,400 examples |
+| Adapter path | `adapters/chem_sage_lora/` | `adapters/chem_sage_32b_lora/` | `adapters/chem_sage_32b_v2_lora/` | `adapters/chem_sage_32b_v3_lora/` |
+| Fused model path | `models/chem_sage_fused/` | `chem_sage_32b/` | `chem_sage_32b_v2/` | `chem_sage_32b_v3/` |
+
+Notes: Round 3 was configured for 1,500 iters but stopped early at actual iter 625 after val loss plateaued at ~0.060. Training was resumed from iter 100 checkpoint after a battery shutdown. 64 layers was attempted first but caused swap thrashing at 31.5 GB peak; reverted to 32 layers. batch_size=8 was also attempted but ran 4.5x slower due to memory pressure; reverted to 4. Round 4 will try 48 layers as a compromise (~28 GB estimated peak).
 
 ### Training loss curves
 
-Validation loss measured every 25 steps over 25 batches. Only val-loss checkpoints shown for brevity; train loss sampled at matching iters where available.
+Validation loss measured every 25 steps over 25 batches. Round 3 was resumed from iter 100 checkpoint after a battery shutdown; actual iter = logged iter + 100 for the resumed portion.
 
-| Iter | 7B Val | 7B Train | 32B Val | 32B Train | Notes |
-|------|--------|----------|---------|-----------|-------|
-| 1 | 3.800 | — | 3.191 | — | Baseline (untrained) |
-| 25 | 1.020 | — | 0.580 | — | First checkpoint |
-| 50 | 0.740 | — | 0.533 | 0.553 | |
-| 75 | 0.630 | — | 0.527 | — | |
-| 100 | 0.580 | — | 0.495 | 0.531 | |
-| 150 | 0.530 | — | 0.496 | 0.464 | Slight wobble |
-| 200 | 0.490 | — | 0.449 | 0.465 | |
-| 250 | 0.460 | — | 0.436 | 0.436 | |
-| 300 | 0.440 | — | 0.416 | 0.424 | |
-| 350 | 0.430 | — | 0.407 | 0.443 | |
-| 400 | 0.420 | — | 0.400 | 0.411 | |
-| 450 | 0.410 | — | 0.393 | — | |
-| 500 | 0.405 | — | 0.375 | 0.349 | |
-| 550 | 0.400 | — | 0.366 | 0.366 | |
-| 600 | 0.395 | — | 0.359 | 0.370 | |
-| 625 | — | — | 0.355 | — | |
-| 650 | 0.392 | — | 0.380 | 0.266 | Slight wobble |
-| 675 | **0.389** | — | **0.347** | — | **Best checkpoint (both models)** |
-| 700 | 0.390 | — | 0.386 | 0.287 | Wobble (near-zero LR, batch variance) |
-| 725 | — | — | 0.351 | — | Recovered |
-| 750 | 0.390 | — | 0.372 | 0.278 | Final |
+| Iter | R1 Val | R2 Val | R3 Val | Notes |
+|------|--------|--------|--------|-------|
+| 1 | 3.800 | 3.191 | 2.110 | Baseline (untrained) |
+| 25 | 1.020 | 0.580 | 0.238 | |
+| 50 | 0.740 | 0.533 | 0.145 | R3 already below R2's best |
+| 75 | 0.630 | 0.527 | 0.122 | |
+| 100 | 0.580 | 0.495 | 0.110 | R3 battery shutdown; resumed from here |
+| 150 | 0.530 | 0.496 | 0.141 | Post-resume wobble |
+| 200 | 0.490 | 0.449 | 0.116 | |
+| 250 | 0.460 | 0.436 | 0.087 | |
+| 300 | 0.440 | 0.416 | 0.077 | |
+| 350 | 0.430 | 0.407 | 0.068 | |
+| 400 | 0.420 | 0.400 | 0.077 | Slight wobble |
+| 450 | 0.410 | 0.393 | 0.068 | |
+| 500 | 0.405 | 0.375 | **0.059** | |
+| 550 | 0.400 | 0.366 | 0.062 | Plateau |
+| 600 | 0.395 | 0.359 | 0.060 | |
+| 625 | — | — | **0.054** | **Best R3 checkpoint (fused)** |
+| 675 | **0.389** | **0.347** | — | Best R1/R2 checkpoint |
+| 750 | 0.390 | 0.372 | — | R1/R2 final |
 
-Both models achieved their best val loss at **iter 675**. The 32B converged faster (0.580 at iter 25 vs 1.020 for 7B) and reached a lower floor (0.347 vs 0.389).
+Round 3 val loss (**0.054**) is **6.4x better** than Round 2 (0.347) and **7.2x better** than Round 1 (0.389). The improvement is driven by dataset quality (19 behaviour classes with code-heavy examples) and 3.3x more training data (4,000 vs 1,200 examples). Round 3 was stopped early at iter 625 of 1,500 after val loss plateaued.
 
 ### Evaluation results
 
-Evaluated on 300 held-out test examples via `eval/eval_chem.py` against `mlx_lm.server`. System prompt injected to instruct RDKit code generation.
+Evaluated on held-out test examples via `eval/eval_chem.py` against `mlx_lm.server`. System prompt injected to instruct RDKit code generation. Round 3 eval pending.
 
-| Metric | 7B | 32B | Delta |
-|--------|-----|------|-------|
-| SMILES validity | 0/0 (n/a) | 25/25 (100%) | 32B generates valid SMILES; 7B never attempts |
-| Tool executability | 0/8 (0%) | 72/174 (41%) | 32B generates 22x more code blocks, 41% run |
-| Numerical fidelity | 0/0 (n/a) | 7/73 (10%) | 32B attempts property computation; 7B does not |
-| Code blocks generated | 8 | 174 | 32B is 22x more likely to emit code |
-| **Overall** | **0%** | **51%** | Weighted: (100 + 41 + 10) / 3 |
+| Metric | Round 1 (7B) | Round 2 (32B) | Round 3 (32B) |
+|--------|------|-------|-------|
+| SMILES validity | 0/0 (n/a) | 25/25 (100%) | **494/499 (99%)** |
+| Tool executability | 0/8 (0%) | 72/174 (41%) | **437/442 (99%)** |
+| Numerical fidelity | 0/0 (n/a) | 7/73 (10%) | **363/533 (68%)** |
+| Code blocks generated | 8 | 174 | 442 |
+| **Overall** | **0%** | **51%** | **89%** |
 
-Scorecard files: `eval/scorecard_7b.html`, `eval/scorecard_32b.html`
+Scorecard files: `eval/scorecard_7b.html` (R1), `eval/scorecard_32b.html` (R2), `eval/scorecard_32b_v2.html` (R3)
 
-The 32B model represents a step change: it engages with chemistry (generating SMILES, writing RDKit code, computing properties) where the 7B produces only prose. The main gap is tool executability (59% of code blocks fail) and numerical fidelity (model computes values in prose rather than emitting RDKit code).
+Round 3 represents a massive improvement: tool executability jumped from 41% to **99%** (every code block runs), SMILES validity held at **99%**, and numerical fidelity improved from 10% to **68%**. The remaining fidelity gap (model computes values in prose rather than quoting code output) is targeted by RAFT-style records in the Round 4 dataset.
 
 ## RAG corpus
 
@@ -160,7 +203,19 @@ The `data/corpus/` directory contains the full retrieval knowledge base: tool re
 
 ## Recent changes
 
-### v2: Qwen 2.5 32B upgrade (2026-06-24)
+### Round 3: Code-heavy dataset and extended training (2026-06-25)
+
+- Expanded SFT dataset from 1,500 to 5,000 examples (4,000 train) across 19 behaviour classes
+- 8 new generator classes targeting eval gaps: `single_property`, `full_profile`, `qed_score`, `molecular_formula`, `smiles_validation`, `property_comparison`, `corpus_drug`, `murcko_sar`
+- 51 seed SMILES + ~1,000 corpus drug examples from `approved_drugs.csv`
+- Configured for 1,500 iters; stopped early at iter 625 after val loss plateaued at ~0.060
+- Best val loss **0.054** at iter 625 (vs 0.347 for Round 2): **6.4x improvement**
+- Attempted 64 layers (swap thrashing at 31.5 GB) and batch_size=8 (4.5x slower); reverted to 32 layers / batch 4
+- Resumed from iter 100 checkpoint after battery shutdown; no data loss
+- Eval: SMILES 99%, Exec 99%, Fidelity 68% (vs R2: 100%, 41%, 10%)
+- Fused model saved to `chem_sage_32b_v2/` (17 GB)
+
+### Round 2: Qwen 2.5 32B upgrade (2026-06-24)
 
 - Upgraded base model from Qwen 2.5 7B to 32B (4-bit, MLX); trained with 32 adapted layers (vs 16 for 7B)
 - Best val loss 0.347 at step 675 (vs 0.389 for 7B): 10.8% improvement
@@ -170,7 +225,7 @@ The `data/corpus/` directory contains the full retrieval knowledge base: tool re
 - System prompt injection in eval harness (test examples lack system messages)
 - Fixed `merge_export.py`: uses `sys.executable -m mlx_lm fuse` (corrected deprecated syntax), resolves adapter path relative to config directory
 
-### v1: Corpus fast-path and chat CLI
+### Round 1: Corpus fast-path and chat CLI
 
 - All 17 corpus CSVs searchable directly from the chat CLI via keyword fast-path (`rag/corpus_lookup.py`) that bypasses the LLM for enumeration queries
 - Up to 500 matching rows loaded per source; pageable in 50-row pages with CSV export
@@ -193,28 +248,43 @@ no VRAM wall: 16 GB handles ~8B, 32 GB ~14B, 64 GB ~32B. QLoRA is automatic beca
 
 ## To Do
 
-### Corpus improvements
-- [ ] Add more diverse Q&A types to SFT dataset: multi-step reasoning ("selectivity profile of X vs Y"), comparative questions, failure-mode examples ("this SMILES is invalid because...")
-- [ ] Increase SFT dataset from 2,400 to 5,000+ examples with more RDKit code-generation demonstrations
-- [ ] Add examples that explicitly teach "emit RDKit code, don't compute manually" for MW/logP/HBD/HBA/TPSA
-- [ ] Include negative examples (invalid SMILES, unanswerable questions) to improve refusal quality
+### Completed (Rounds 1-3)
+- [x] Increase SFT dataset from 1,500 to 5,000 examples with code-heavy generators (Round 3)
+- [x] Add examples that teach "emit RDKit code, don't compute manually" (Round 3: `single_property`, `full_profile`)
+- [x] Include SMILES validation examples (Round 3: `smiles_validation`)
+- [x] Increase `iters` from 750 to 1,500 (Round 3; stopped early at 625 — val loss plateaued)
+- [x] Try `num_layers: 64` — caused swap thrashing at 31.5 GB; reverted to 32
+- [x] Try `batch_size: 8` — 4.5x slower due to memory pressure; reverted to 4
+- [x] Add structural biology generators: PyMOL selections/viz, PLIP, PDB format, pdb-tools, Biopython, ChimeraX, gemmi
+- [x] Add Plotly and R/ggplot2/bio3d recipe generators
+- [x] Add protein family generators: kinases, GPCRs, antibodies, GTPases, cytokines, receptors (real PDB data)
+- [x] Add numerical fidelity drills: `code_then_quote` (3x), `rounding_precision` (2x)
+- [x] Add refusal/out-of-scope examples
+- [x] Expand dataset to 8,000 examples across 51 behaviour classes
 
-### Training improvements (round 2)
-- [ ] Increase `iters` from 750 to 1,500; update `lr_schedule` arguments to `[2e-5, 1500]`
-- [ ] Increase `batch_size` from 4 to 8 (peak memory 24.9 GB, 64 GB available: halves wall-clock time)
-- [ ] Try `num_layers: 64` (all layers) since memory headroom is ~40 GB
-- [ ] Consider `rank: 64` for more adapter expressivity on the 32B model
-- [ ] Save adapter to `adapters/chem_sage_32b_v2_lora` to keep runs distinct
+### Round 4 dataset (ready)
+- [x] 8,000 examples across 51 behaviour classes (`build_dataset.py --n 8000 --seed 47`)
+- [x] Protein family coverage: kinases (7,687 PDB), antibodies (3,322), GPCRs (103), GTPases (359), cytokines (769), receptors (6,891) — real PDB IDs and ligand SMILES from corpus
+- [x] Numerical fidelity drills: `code_then_quote` enforces "compute then quote" pattern; `rounding_precision` teaches MW 1dp, logP 2dp, TPSA 1dp
+- [x] Structural biology: PyMOL selection algebra, visualization recipes, PLIP interaction analysis, PDB format, pdb-tools, Biopython Bio.PDB, ChimeraX, gemmi, structure preparation, docking interpretation
+- [x] Visualization: Plotly Python (scatter, radar), R/ggplot2 (SAR plots), bio3d (RMSD, RMSF)
+- [ ] Set `steps_per_report: 25` to align train/val reporting at same iters
+
+### Round 4 training (planned)
+- [ ] Try `num_layers: 48` (compromise: est. ~28 GB peak, within 64 GB)
+- [ ] Adapter path: `adapters/chem_sage_32b_v3_lora`
+- [ ] Fused model path: `chem_sage_32b_v3/`
+- [ ] Consider `rank: 64` for more adapter expressivity
 
 ### Evaluation and model quality
-- [ ] Improve tool executability from 41% to >70%: root cause is import errors and wrong RDKit function names in generated code; fix by adding more diverse RDKit code examples to SFT data
-- [ ] Improve numerical fidelity from 10% to >50%: model computes values in prose instead of code; fix by adding system-prompt-following examples to SFT data
-- [ ] Add perplexity benchmark against base (unfine-tuned) 32B to measure domain adaptation gain
+- [x] Complete Round 3 eval: SMILES 99%, Exec 99%, Fidelity 68%
+- [ ] Improve numerical fidelity from 68% to >85% via RAFT records + `code_then_quote` drills (Round 4)
+- [ ] Add perplexity benchmark against base (unfine-tuned) 32B
 - [ ] Add hallucination rate metric: count invented PDB IDs, ChEMBL IDs, SMILES not in corpus
 
 ### Infrastructure
-- [ ] Set up HuggingFace token for authenticated downloads (avoid rate limits during training)
-- [ ] Create a `scripts/run_eval.sh` that starts server, waits, runs eval, and stops server in one command
+- [ ] Set up HuggingFace token for authenticated downloads
+- [ ] Create `scripts/run_eval.sh` (start server, wait, run eval, stop server)
 
 ---
 

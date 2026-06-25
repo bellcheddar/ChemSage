@@ -1,19 +1,19 @@
 # ChemSage QLoRA training configuration (MLX-LM native)
 #
-# Run with: mlx_lm.lora --config config/train_config.yaml --train
+# Run with: python scripts/train_launch.py   (sets MLX cache limits, then runs mlx_lm.lora)
+# Or:       mlx_lm.lora --config config/train_config.yaml --train   (without cache limits)
 #
-# Merged from expert recommendations + session-tested settings.
+# Round 4: 64 layers, 6,400 training examples across 67 behaviour classes.
+# Pre-launch: run scripts/preflight.sh to flush memory and kill background processes.
+#
 # Key design rationale:
 #
 #   RSLoRA (use_rslora: true) normalises LoRA updates by 1/√rank rather than
-#   1/rank. With rank=32 and lr=1e-4, the effective step size is ≈ 1.77e-5 —
-#   more conservative than our previous lr=3e-5 without RSLoRA. The expert's
-#   lr=1e-4 is therefore safe in this combination.
+#   1/rank. With rank=32 and scale=64, effective multiplier ≈ 11.3×.
 #
-#   iters=750 with batch_size=4 → 3,000 sample steps ≈ 1.25 epochs over the
-#   2,400-example training split. The cosine schedule with 50-step warmup
-#   keeps the first ~50 steps well below peak lr, preventing the early
-#   instability we saw with a flat schedule.
+#   iters=1500 with batch_size=4 → 6,000 sample steps ≈ 0.94 epochs over the
+#   6,400-example training split. The cosine schedule with 50-step warmup
+#   keeps the first ~50 steps well below peak lr.
 #
 #   weight_decay=0.01 adds AdamW L2 regularisation — important for a small
 #   corpus where overfitting is the primary risk after stability.
@@ -31,12 +31,14 @@ fine_tune_type: "lora"
 data: "data/sft"
 
 # --- Adapter output ---
-adapter_path: "adapters/chem_sage_32b_lora"
+adapter_path: "adapters/chem_sage_32b_v3_lora"
 
 # --- LoRA / RSLoRA ---
 # Expert: rank=32, scale=64, use_rslora=true → effective alpha = 64/√32 ≈ 11.3
-# All 7 projection matrices adapted across the top 32 transformer layers.
-num_layers: 32
+# All 7 projection matrices adapted across all 64 transformer layers.
+# 64 layers previously caused swap thrashing — resolved by clearing orphaned
+# processes and capping MLX cache (see scripts/preflight.sh and scripts/train_launch.py).
+num_layers: 64
 lora_parameters:
   keys:
     - "self_attn.q_proj"
@@ -50,36 +52,29 @@ lora_parameters:
   scale: 64.0
   dropout: 0.05
 
-use_rslora: true     # requires mlx-lm >= 0.12; remove if your version rejects it
+use_rslora: true
 use_dora: false
 
 # --- Optimisation ---
-iters: 750
+iters: 1500
 batch_size: 4
-# Collapse observed at peak LR 1e-4 (onset ~6e-5 during warmup).
-# With RSLoRA scale=64/rank=32, effective update magnitude = lr × 11.3.
-# Peak LR 2e-5 → effective 2.26e-4, roughly 3× below the collapse threshold.
 learning_rate: 2.0e-5
 
 # Cosine decay with linear warmup.
-# MLX-LM format: arguments=[peak_lr, total_decay_steps]
 lr_schedule:
   name: cosine_decay
   warmup: 50
-  arguments: [2.0e-5, 750]
+  arguments: [2.0e-5, 1500]
 
-weight_decay: 0.01        # AdamW L2 regularisation
-
-# gradient_accumulation_steps is not a native MLX-LM config key in all versions.
-# To get effective_batch=16, set batch_size: 8 if you have >=24 GB RAM.
-# At 16 GB unified memory with grad_checkpoint, batch_size=4 is the safe default.
+weight_decay: 0.01
 
 max_seq_length: 2048
-grad_checkpoint: true     # essential on 16-GB Apple Silicon
-seed: 42
+grad_checkpoint: true
+seed: 51
 
 # --- Reporting / eval / checkpoints ---
-steps_per_report: 10
+# steps_per_report aligned with steps_per_eval so train/val loss appear at same iters
+steps_per_report: 25
 steps_per_eval: 25
 val_batches: 25
-save_every: 25            # reduced from 50 so the best checkpoint is never >25 steps away
+save_every: 25

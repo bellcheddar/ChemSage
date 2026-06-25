@@ -49,3 +49,54 @@ asserting a number from memory.
    reasoning, RDKit tool calls, PyMOL tool calls, structural/docking interpretation, medchem SAR.
 4. **Keep SMILES inside fenced code blocks** so the model treats them as literals handed to RDKit.
 5. **Split** 80/10/10 train/valid/test; the test split is frozen and never seen during training.
+
+## Dataset versions
+
+| Version | Round | Examples | Classes | Command |
+|---|---|---|---|---|
+| v1 | Rounds 1-2 | 1,500 (1,200 train) | 8 | `build_dataset.py --n 1500` |
+| v2 | Round 3 | 5,000 (4,000 train) | 19 | `build_dataset.py --n 5000 --seed 43` |
+| v3 | Round 4 | 8,000 (6,400 train) | 67 | `build_dataset.py --n 8000 --seed 51` |
+
+### v2 behaviour classes (Round 3)
+
+Original 8 classes plus 11 new code-heavy generators targeting eval gaps:
+
+| Class | Weight | Purpose |
+|---|---|---|
+| `smiles_literacy` | 1x | Canonicalise SMILES, identify functional groups |
+| `property_reasoning` | 1x | Lipinski/Veber druglikeness assessment |
+| `murcko_scaffold` | 1x | Murcko scaffold extraction |
+| `tanimoto` | 1x | Tanimoto similarity (Morgan fingerprints) |
+| `substructure` | 1x | SMARTS substructure search |
+| `pymol_script` | 1x | PyMOL command script generation |
+| `plip_interpretation` | 1x | PLIP interaction interpretation |
+| `medchem_mmp` | 1x | Matched molecular pair analysis |
+| `single_property` | **2x** | One property at a time with RDKit code block |
+| `full_profile` | **2x** | Complete property profile via code |
+| `qed_score` | 1x | QED drug-likeness score |
+| `molecular_formula` | 1x | Formula, atom counts, ring analysis |
+| `smiles_validation` | 1x | Valid/invalid SMILES handling |
+| `property_comparison` | 1x | Side-by-side two-molecule comparison |
+| `corpus_drug` | **2x** | Named drugs from approved_drugs.csv |
+| `murcko_sar` | 1x | Scaffold comparison with SAR context |
+
+v2 uses 51 seed SMILES (up from 25) plus ~1,000 approved drugs from the corpus. 243 examples were rejected during validation (95% pass rate).
+
+### v3 additions (Round 4)
+
+v3 adds 32 new generators (51 total) across structural biology, visualization, protein families, and numerical fidelity:
+
+**Structural biology:** `pymol_selection` (2x), `pymol_viz` (2x), `plip_analysis` (2x), `pdb_format` (2x), `pdbtools` (2x), `biopython` (2x), `chimerax` (2x), `gemmi` (1x), `struct_prep` (1x), `docking_interp` (2x)
+
+**Protein families:** `protein_family` (3x) — kinases, dark kinases, antibodies, GPCRs, GTPases, cytokines, receptors with real PDB IDs, ligand SMILES, and family-specific context from corpus CSVs
+
+**Visualization:** `plotly` (2x) — Plotly Python scatter/radar; `r_recipe` (2x) — R/ggplot2/bio3d/Plotly-R
+
+**Numerical fidelity:** `code_then_quote` (3x) — enforces "compute then state" pattern; `rounding_precision` (2x) — MW 1dp, logP 2dp, TPSA 1dp
+
+**Personality:** `personality_drug` (3x) — Lipinski verdicts with ✅/❌ cards, emoji, medchem humor; `personality_valid` (2x) — SMILES validation with flair; `personality_struct` (3x) — structural observations with character
+
+**RAFT (fidelity fix):** `raft_single` (3x) — real RDKit stdout in user turn, assistant quotes from it; `raft_druglike` (3x) — druglikeness with real output; `raft_distractor` (2x) — correct value vs wrong database value
+
+**Robustness:** `refusal` (2x) — out-of-scope and invalid query handling

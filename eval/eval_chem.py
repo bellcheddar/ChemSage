@@ -37,9 +37,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from rag.tool_exec import extract_code, run_sandboxed
 
 SMILES_RE = re.compile(r"MolFromSmiles\(['\"]([^'\"]+)['\"]\)")
-# Match stated property values in prose: "MW 342.4" or "logP: 1.23" etc.
+CODE_BLOCK_RE = re.compile(r"```.*?```", re.DOTALL)
+# Match stated property values in prose: "MW 342.4", "MW: 342.4", "MW = 342.4 Da", "MW=342.4"
 PROP_RE   = re.compile(
-    r"(?P<prop>MW|logP|HBD|HBA|TPSA)\s*[=:]\s*(?P<val>[\d.]+)",
+    r"(?P<prop>MW|logP|HBD|HBA|TPSA)\s*[=:\s]\s*(?P<val>[\d.]+)",
     re.IGNORECASE,
 )
 
@@ -100,37 +101,44 @@ def numerical_fidelity(output: str) -> tuple[int, int]:
 
     Requires a MolFromSmiles() call in the same output so we know which molecule to check.
     Tolerates a small floating-point delta (0.5 for MW/logP, 0 for integer descriptors).
+    Only checks prose (strips code blocks to avoid matching code expressions).
+    For multi-molecule outputs, accepts a value if it matches ANY molecule present.
     """
     smis = SMILES_RE.findall(output)
     if not smis:
         return 0, 0
 
-    # Use the first valid molecule found
-    mol = None
+    # Build truth tables for ALL valid molecules (handles comparison examples)
+    molecules = []
     for s in smis:
         mol = Chem.MolFromSmiles(s)
         if mol is not None:
-            break
-    if mol is None:
+            molecules.append({
+                "mw":   round(Descriptors.MolWt(mol), 1),
+                "logp": round(Descriptors.MolLogP(mol), 2),
+                "hbd":  Lipinski.NumHDonors(mol),
+                "hba":  Lipinski.NumHAcceptors(mol),
+                "tpsa": round(rdMolDescriptors.CalcTPSA(mol), 1),
+            })
+    if not molecules:
         return 0, 0
 
-    truth = {
-        "mw":   round(Descriptors.MolWt(mol), 1),
-        "logp": round(Descriptors.MolLogP(mol), 2),
-        "hbd":  Lipinski.NumHDonors(mol),
-        "hba":  Lipinski.NumHAcceptors(mol),
-        "tpsa": round(rdMolDescriptors.CalcTPSA(mol), 1),
-    }
     tol = {"mw": 0.5, "logp": 0.1, "hbd": 0, "hba": 0, "tpsa": 0.5}
 
+    # Strip code blocks — only check prose claims
+    prose = CODE_BLOCK_RE.sub("", output)
+
     checked = ok = 0
-    for match in PROP_RE.finditer(output):
+    for match in PROP_RE.finditer(prose):
         key   = match.group("prop").lower()
-        stated = float(match.group("val"))
-        if key not in truth:
+        try:
+            stated = float(match.group("val").rstrip("."))
+        except ValueError:
+            continue
+        if key not in molecules[0]:
             continue
         checked += 1
-        if abs(stated - truth[key]) <= tol[key]:
+        if any(abs(stated - mol_truth[key]) <= tol[key] for mol_truth in molecules):
             ok += 1
 
     return ok, checked

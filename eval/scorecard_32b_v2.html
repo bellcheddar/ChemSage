@@ -1,0 +1,216 @@
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>ChemSage Eval — 2026-06-25 11:34</title>
+        <style>
+          :root {
+            --navy:   #1C244B;
+            --accent: #467FF7;
+            --bg:     #f5f7fb;
+            --text:   #1a1a2e;
+            --card:   #ffffff;
+            --border: #e4e8f0;
+          }
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+          body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg); color: var(--text);
+            padding: 2.5rem 2rem; max-width: 1100px; margin: auto;
+          }
+          h1   { color: var(--navy); font-size: 1.7rem; margin-bottom: .2rem; }
+          .sub { color: #666; font-size: .85rem; margin-bottom: 2rem; }
+          .cards { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 2.5rem; }
+          .card {
+            background: var(--card); border-radius: 14px;
+            padding: 1.4rem 2rem; box-shadow: 0 2px 10px rgba(0,0,0,.06);
+            min-width: 160px; text-align: center; flex: 1;
+          }
+          .card .val { font-size: 2.5rem; font-weight: 700; color: var(--accent); }
+          .card .lbl { font-size: .8rem; color: #666; margin-top: .3rem; line-height: 1.4; }
+          table {
+            width: 100%; border-collapse: collapse;
+            background: var(--card); border-radius: 14px;
+            overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,.06);
+          }
+          th {
+            background: var(--navy); color: #fff;
+            text-align: left; padding: .7rem 1rem; font-size: .82rem; font-weight: 600;
+          }
+          td { padding: .55rem 1rem; border-bottom: 1px solid var(--border); font-size: .8rem; }
+          td.q   { max-width: 380px; word-break: break-word; }
+          td.num { text-align: center; }
+          tr:last-child td { border-bottom: none; }
+          tr:nth-child(even) { background: #f9fafd; }
+          .footer { margin-top: 2rem; font-size: .72rem; color: #aaa; }
+          a { color: var(--accent); text-decoration: none; }
+          a:hover { text-decoration: underline; }
+        </style>
+        </head>
+        <body>
+        <h1>ChemSage Evaluation Scorecard</h1>
+        <div class="sub">
+          Model: <b>/Users/dellboy/Documents/Vibe_Coding/chem_sage/chem_sage_32b_v2</b> &nbsp;|&nbsp; Endpoint: http://localhost:8080/v1
+          &nbsp;|&nbsp; 2026-06-25 11:34
+          &nbsp;|&nbsp; 500 test examples
+        </div>
+        <div class="cards">
+          <div class="card">
+            <div class="val">99%</div>
+            <div class="lbl">SMILES validity<br>(494/499 SMILES parsed)</div>
+          </div>
+          <div class="card">
+            <div class="val">99%</div>
+            <div class="lbl">Tool executability<br>(437/442 RDKit blocks ran)</div>
+          </div>
+          <div class="card">
+            <div class="val">68%</div>
+            <div class="lbl">Numerical fidelity<br>(363/533 props matched RDKit)</div>
+          </div>
+          <div class="card">
+            <div class="val">500</div>
+            <div class="lbl">Test examples<br>evaluated</div>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Prompt</th>
+              <th>SMILES ok/total</th>
+              <th>Exec ok/total</th>
+              <th>Fidelity ok/total</th>
+            </tr>
+          </thead>
+          <tbody>
+        <tr><td>1</td><td class='q'>Assess the oral drug-likeness of OC(=O)c1cccnc1 using Lipinski and Veber rules.</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>2</td><td class='q'>Compare these two analogues as a matched molecular pair and reason about the SAR implicati…</td><td class='num'>2/2</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>3</td><td class='q'>What is the number of hydrogen bond donors of CC(=O)Nc1ccc(O)cc1?</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>4</td><td class='q'>Do these two compounds share the same scaffold?
+A: CC(N)Cc1ccc(O)cc1
+B: O=C(O)c1ccc2ccccc2…</td><td class='num'>2/2</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>5</td><td class='q'>Here is a PLIP interaction summary for a ligand docked into 1OYT (Bcr-Abl (imatinib)):
+Hyd…</td><td class='num'>0/0</td><td class='num'>0/0</td><td class='num'>0/0</td></tr>
+<tr><td>6</td><td class='q'>Run a complete property calculation on OC(=O)c1cccnc1.</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>5/5</td></tr>
+<tr><td>7</td><td class='q'>What is the QED score of Cc1ccc(cc1)S(=O)(=O)N?</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>8</td><td class='q'>Here is a PLIP interaction summary for a ligand docked into 4DKL (CDK2 kinase):
+Hydrogen b…</td><td class='num'>0/0</td><td class='num'>0/0</td><td class='num'>0/0</td></tr>
+<tr><td>9</td><td class='q'>Here is a PLIP interaction summary for a ligand docked into 4DKL (CDK2 kinase):
+Hydrogen b…</td><td class='num'>0/0</td><td class='num'>0/0</td><td class='num'>0/0</td></tr>
+<tr><td>10</td><td class='q'>Write a PyMOL script for 2GS6 (Abl kinase (imatinib complex)) to generate a ray-traced fig…</td><td class='num'>0/0</td><td class='num'>0/0</td><td class='num'>0/0</td></tr>
+<tr><td>11</td><td class='q'>Extract the Murcko scaffold from CCOc1ccc(NC(=O)c2cc(C(F)(F)F)ccc2Cl)cc1.</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>12</td><td class='q'>Give me the full physicochemical profile of CC(N)Cc1ccccc1.</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>5/5</td></tr>
+<tr><td>13</td><td class='q'>Compute all drug-likeness properties for CC(C)Cc1ccc(cc1)C(C)C(=O)O.</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>5/5</td></tr>
+<tr><td>14</td><td class='q'>What are the properties of METHIODAL?</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>5/5</td></tr>
+<tr><td>15</td><td class='q'>Compute all drug-likeness properties for CCOc1ccc(NC(=O)c2cc(C(F)(F)F)ccc2Cl)cc1.</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>5/5</td></tr>
+<tr><td>16</td><td class='q'>Run a complete property calculation on CC(=O)Oc1ccc(O)cc1.</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>5/5</td></tr>
+<tr><td>17</td><td class='q'>Compare these two analogues as a matched molecular pair and reason about the SAR implicati…</td><td class='num'>2/2</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>18</td><td class='q'>Here is a PLIP interaction summary for a ligand docked into 1HSG (HIV protease):
+Hydrogen …</td><td class='num'>0/0</td><td class='num'>0/0</td><td class='num'>0/0</td></tr>
+<tr><td>19</td><td class='q'>Run a complete property calculation on Oc1ccc(Cl)cc1.</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>5/5</td></tr>
+<tr><td>20</td><td class='q'>Compute the physicochemical properties of RISDIPLAM (SMILES: Cc1cn2nc(-c3cc(=O)n4cc(N5CCNC…</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/5</td></tr>
+<tr><td>21</td><td class='q'>Do these two compounds share the same scaffold?
+A: COc1ccc2c(c1)c(CC(=O)O)c(C)n2C(=O)c1ccc…</td><td class='num'>2/2</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>22</td><td class='q'>Write a PyMOL script for 3HTB (SARS-CoV-2 main protease) to measure the distance from the …</td><td class='num'>0/0</td><td class='num'>0/0</td><td class='num'>0/0</td></tr>
+<tr><td>23</td><td class='q'>Do these two compounds share the same scaffold?
+A: COc1cc2nc(N3CCN(C(=O)c4ccco4)CC3)nc(N)c…</td><td class='num'>2/2</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>24</td><td class='q'>Canonicalise this SMILES and identify any obvious functional groups: CC(=O)c1ccc(O)cc1</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>25</td><td class='q'>Give me the full physicochemical profile of CC(=O)Nc1ccc(O)cc1.</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>5/5</td></tr>
+<tr><td>26</td><td class='q'>Give me the atom counts for CN1CCC[C@H]1c1cccnc1.</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>27</td><td class='q'>Is DELAFLOXACIN MEGLUMINE drug-like? Calculate its Lipinski properties.</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/5</td></tr>
+<tr><td>28</td><td class='q'>Write a PyMOL script for 1OYT (Bcr-Abl (imatinib)) to measure the distance from the ligand…</td><td class='num'>0/0</td><td class='num'>0/0</td><td class='num'>0/0</td></tr>
+<tr><td>29</td><td class='q'>What is the QED score of Nc1ccc(S(N)(=O)=O)cc1?</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>30</td><td class='q'>What is the molecular formula of OC(=O)c1ccc(Cl)cc1?</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>31</td><td class='q'>How structurally similar are CC(=O)Oc1ccccc1C(=O)O and COc1ccc2c(c1)c(CC(=O)O)c(C)n2C(=O)c…</td><td class='num'>2/2</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>32</td><td class='q'>Compare the physicochemical properties of these two compounds:
+A: CC(=O)Nc1nnc(S(N)(=O)=O)…</td><td class='num'>0/0</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>33</td><td class='q'>Extract the Murcko scaffold from CN1C=NC2=C1C(=O)N(C(=O)N2C)C.</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>34</td><td class='q'>Here is a PLIP interaction summary for a ligand docked into 1OYT (Bcr-Abl (imatinib)):
+Hyd…</td><td class='num'>0/0</td><td class='num'>0/0</td><td class='num'>0/0</td></tr>
+<tr><td>35</td><td class='q'>Extract the Murcko scaffold from Nc1ccc(S(N)(=O)=O)cc1.</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>36</td><td class='q'>Give me the full physicochemical profile of CC(=O)Oc1ccccc1C(=O)O.</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>5/5</td></tr>
+<tr><td>37</td><td class='q'>Compute the physicochemical properties of SODIUM SUCCINATE (SMILES: O=C([O-])CCC(=O)O.[Na+…</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/4</td></tr>
+<tr><td>38</td><td class='q'>What is the QED score of COc1ccc2c(c1)c(CC(=O)O)c(C)n2C(=O)c1ccc(Cl)cc1?</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>39</td><td class='q'>Compare these two analogues as a matched molecular pair and reason about the SAR implicati…</td><td class='num'>2/2</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>40</td><td class='q'>Compare the physicochemical properties of these two compounds:
+A: CC(=O)Nc1nnc(S(N)(=O)=O)…</td><td class='num'>0/0</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>41</td><td class='q'>Extract the Murcko scaffold from CC(C)NCC(O)COc1ccc(CC(N)=O)cc1.</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>42</td><td class='q'>What is the molecular weight of OC(=O)/C=C/c1ccccc1?</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>43</td><td class='q'>What is the number of rotatable bonds of Cc1nc2ccccc2c(=O)n1Cc1ccccc1?</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>44</td><td class='q'>Does the molecule CC(C)Cc1ccc(cc1)C(C)C(=O)O contain a amide bond (C(=O)N)?</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>45</td><td class='q'>Does the molecule c1ccc(Nc2ncnc3ccsc23)cc1 contain a amide bond (C(=O)N)?</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>46</td><td class='q'>Compute all drug-likeness properties for Oc1ccc(Cl)cc1.</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>5/5</td></tr>
+<tr><td>47</td><td class='q'>Assess the oral drug-likeness of O=C1NC(=O)c2ccccc21 using Lipinski and Veber rules.</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>48</td><td class='q'>Canonicalise this SMILES and identify any obvious functional groups: CC(C)Cc1ccc(cc1)C(C)C…</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>49</td><td class='q'>Compare these two analogues as a matched molecular pair and reason about the SAR implicati…</td><td class='num'>2/2</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>50</td><td class='q'>Canonicalise this SMILES and identify any obvious functional groups: CC(N)Cc1ccccc1</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>51</td><td class='q'>Give me the full physicochemical profile of CC(C)(C)OC(=O)Nc1ccc(cc1)C(=O)O.</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>5/5</td></tr>
+<tr><td>52</td><td class='q'>How structurally similar are COc1cc2nc(N3CCN(C(=O)c4ccco4)CC3)nc(N)c2cc1OC and OC(=O)c1ccc…</td><td class='num'>2/2</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>53</td><td class='q'>Does the molecule OC(=O)c1ccc(N)cc1 contain a primary amine ([NX3;H2])?</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>54</td><td class='q'>What is the number of hydrogen bond donors of COc1cc2nc(N3CCN(C(=O)c4ccco4)CC3)nc(N)c2cc1O…</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>55</td><td class='q'>Canonicalise this SMILES and identify any obvious functional groups: O=C(O)c1cn(C2CC2)c2cc…</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>56</td><td class='q'>Is TOLMETIN SODIUM drug-like? Calculate its Lipinski properties.</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/4</td></tr>
+<tr><td>57</td><td class='q'>What are the properties of METHOPHOLINE?</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>5/5</td></tr>
+<tr><td>58</td><td class='q'>Here is a PLIP interaction summary for a ligand docked into 2GS6 (Abl kinase (imatinib com…</td><td class='num'>0/0</td><td class='num'>0/0</td><td class='num'>0/0</td></tr>
+<tr><td>59</td><td class='q'>Give me the full physicochemical profile of CC(C)NCC(O)COc1cccc2ccccc12.</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>5/5</td></tr>
+<tr><td>60</td><td class='q'>Compute the TPSA of CC(N)Cc1ccc(O)cc1 using RDKit.</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>61</td><td class='q'>Here is a PLIP interaction summary for a ligand docked into 2GS6 (Abl kinase (imatinib com…</td><td class='num'>0/0</td><td class='num'>0/0</td><td class='num'>0/0</td></tr>
+<tr><td>62</td><td class='q'>Compute all drug-likeness properties for CC(C)NCC(O)c1ccc(O)c(O)c1.</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>5/5</td></tr>
+<tr><td>63</td><td class='q'>What is the QED score of CC(N)Cc1ccccc1?</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>64</td><td class='q'>Write a PyMOL script for 1OYT (Bcr-Abl (imatinib)) to generate a ray-traced figure of the …</td><td class='num'>0/0</td><td class='num'>0/0</td><td class='num'>0/0</td></tr>
+<tr><td>65</td><td class='q'>Calculate the number of rotatable bonds for this molecule: c1ccc(Nc2ncnc3ccsc23)cc1</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>66</td><td class='q'>Assess the oral drug-likeness of CN1C(=O)CN=C(c2ccccc2)c2cc(Cl)ccc21 using Lipinski and Ve…</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>67</td><td class='q'>Compare the physicochemical properties of these two compounds:
+A: OC(=O)/C=C/c1ccccc1
+B: C…</td><td class='num'>0/0</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>68</td><td class='q'>Give me the full physicochemical profile of COc1cc2nc(N3CCN(C(=O)c4ccco4)CC3)nc(N)c2cc1OC.</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>4/5</td></tr>
+<tr><td>69</td><td class='q'>What is the molecular formula of CC(=O)Oc1ccccc1C(=O)O?</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>70</td><td class='q'>Do these two compounds share the same scaffold?
+A: OC(=O)c1cccnc1
+B: CC(C)(C)OC(=O)Nc1ccc(…</td><td class='num'>2/2</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>71</td><td class='q'>Extract the Murcko scaffold from Nc1ccc(S(N)(=O)=O)cc1.</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>72</td><td class='q'>Run a complete property calculation on CC(C)NCC(O)COc1ccc(CC(N)=O)cc1.</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>5/5</td></tr>
+<tr><td>73</td><td class='q'>What are the properties of PROXIBARBAL?</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>5/5</td></tr>
+<tr><td>74</td><td class='q'>What is the molecular formula of CN1CCC[C@H]1c1cccnc1?</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>75</td><td class='q'>Compute the physicochemical properties of SULFOXONE (SMILES: O=S(O)CNc1ccc(S(=O)(=O)c2ccc(…</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>1/5</td></tr>
+<tr><td>76</td><td class='q'>Extract the Murcko scaffold from O=C(O)c1cn(C2CC2)c2cc(N3CCNCC3)c(F)cc2c1=O.</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>77</td><td class='q'>What is the QED score of CC(C)NCC(O)c1ccc(O)c(O)c1?</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>78</td><td class='q'>Compute all drug-likeness properties for O=C1NC(=O)C(c2ccccc2)(c2ccccc2)N1.</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>5/5</td></tr>
+<tr><td>79</td><td class='q'>What is the QED score of c1ccc(Nc2ncnc3ccsc23)cc1?</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>80</td><td class='q'>How structurally similar are OC(=O)CCc1ccccc1 and CC(O)c1ccccc1? Use Morgan fingerprints.</td><td class='num'>2/2</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>81</td><td class='q'>Compute all drug-likeness properties for O=C(O)c1ccccc1O.</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>5/5</td></tr>
+<tr><td>82</td><td class='q'>Do these two compounds share the same scaffold?
+A: Oc1ccc(Cl)cc1
+B: c1ccc(Nc2ncnc3ccsc23)c…</td><td class='num'>2/2</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>83</td><td class='q'>How structurally similar are NC(=O)c1ccc(O)cc1 and CC(O)c1ccccc1? Use Morgan fingerprints.</td><td class='num'>2/2</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>84</td><td class='q'>How structurally similar are CC1=CC(=O)c2ccccc2C1=O and c1ccc(cc1)C(=O)O? Use Morgan finge…</td><td class='num'>2/2</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>85</td><td class='q'>What is the QED score of CC12CCC3C(C1CCC2O)CCC4=CC(=O)CCC34C?</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>86</td><td class='q'>Here is a PLIP interaction summary for a ligand docked into 3HTB (SARS-CoV-2 main protease…</td><td class='num'>0/0</td><td class='num'>0/0</td><td class='num'>0/0</td></tr>
+<tr><td>87</td><td class='q'>Run a complete property calculation on CC(=O)Nc1ccc(O)cc1.</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>4/5</td></tr>
+<tr><td>88</td><td class='q'>Here is a PLIP interaction summary for a ligand docked into 4DKL (CDK2 kinase):
+Hydrogen b…</td><td class='num'>0/0</td><td class='num'>0/0</td><td class='num'>0/0</td></tr>
+<tr><td>89</td><td class='q'>Here is a PLIP interaction summary for a ligand docked into 2GS6 (Abl kinase (imatinib com…</td><td class='num'>0/0</td><td class='num'>0/0</td><td class='num'>0/0</td></tr>
+<tr><td>90</td><td class='q'>Compute the number of rotatable bonds of Cn1cc(C(=O)Nc2ccc(F)cc2)c2ccccc21 using RDKit.</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>91</td><td class='q'>What is the QED score of OC(=O)/C=C/c1ccccc1?</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>92</td><td class='q'>Write a PyMOL script for 1OYT (Bcr-Abl (imatinib)) to show the binding site within 5 Å of …</td><td class='num'>0/0</td><td class='num'>0/0</td><td class='num'>0/0</td></tr>
+<tr><td>93</td><td class='q'>Here is a PLIP interaction summary for a ligand docked into 1HSG (HIV protease):
+Hydrogen …</td><td class='num'>0/0</td><td class='num'>0/0</td><td class='num'>0/0</td></tr>
+<tr><td>94</td><td class='q'>Write a PyMOL script for 1OYT (Bcr-Abl (imatinib)) to generate a ray-traced figure of the …</td><td class='num'>0/0</td><td class='num'>0/0</td><td class='num'>0/0</td></tr>
+<tr><td>95</td><td class='q'>Give me the atom counts for CC(C)NCC(O)COc1ccc(CC(N)=O)cc1.</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>96</td><td class='q'>Here is a PLIP interaction summary for a ligand docked into 2GS6 (Abl kinase (imatinib com…</td><td class='num'>0/0</td><td class='num'>0/0</td><td class='num'>0/0</td></tr>
+<tr><td>97</td><td class='q'>How structurally similar are O=c1ccc2ccccc2o1 and Oc1ccc(Cl)cc1? Use Morgan fingerprints.</td><td class='num'>2/2</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>98</td><td class='q'>Compare the physicochemical properties of these two compounds:
+A: CC(=O)Nc1ccc(Cl)cc1
+B: C…</td><td class='num'>0/0</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+<tr><td>99</td><td class='q'>Here is a PLIP interaction summary for a ligand docked into 3HTB (SARS-CoV-2 main protease…</td><td class='num'>0/0</td><td class='num'>0/0</td><td class='num'>0/0</td></tr>
+<tr><td>100</td><td class='q'>Canonicalise this SMILES and identify any obvious functional groups: OC(=O)CCc1ccccc1</td><td class='num'>1/1</td><td class='num'>1/1</td><td class='num'>0/0</td></tr>
+  </tbody>
+        </table>
+        <div class="footer">
+          Generated by ChemSage eval harness &nbsp;·&nbsp;
+          Marc C. Deller, D.Phil. &nbsp;·&nbsp;
+          <a href="https://marcdeller.com">marcdeller.com</a>
+        </div>
+        </body>
+        </html>

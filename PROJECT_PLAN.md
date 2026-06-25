@@ -6,7 +6,7 @@ medicinal chemist actually uses (RDKit, PyMOL, docking, PLIP), and grounds every
 in the user's own corpus (papers, assay tables, target dossiers, SAR series).
 
 **Author:** Marc C. Deller, D.Phil. ([marcdeller.com](https://marcdeller.com))
-**Status:** planning / scaffold (v1)
+**Status:** Round 3 complete (v3) — 32B model, val loss 0.054, eval: SMILES 99%, Exec 99%, Fidelity 68%. Round 4 dataset ready (67 classes, 8,000 examples).
 **Fine-tune stack:** MLX-LM on Apple Silicon (committed; see section 3).
 **Hand-off:** this document is the build brief for Claude Code. Phases are ordered so each one
 is independently testable and delivers value before the next begins.
@@ -90,7 +90,7 @@ models that would not fit a 24 GB discrete card. Supported architectures in MLX-
 Mistral, Qwen2, Phi, Gemma, Mixtral. MLX requires HuggingFace-format (safetensors) weights, not
 GGUF.
 
-**Record here:** Mac memory ____ GB, base model ____ (see Phase 1).
+**Record:** Mac memory 64 GB, base model `mlx-community/Qwen2.5-32B-Instruct-4bit` (upgraded from 7B in Round 2).
 
 ---
 
@@ -116,12 +116,13 @@ automatically):
 
 | Model | Licence | Notes |
 |---|---|---|
-| **mlx-community/Qwen2.5-7B-Instruct-4bit** (recommended) | Apache 2.0 | Strong code/tool-use behaviour, no licence friction |
+| **mlx-community/Qwen2.5-32B-Instruct-4bit** (current) | Apache 2.0 | Upgraded from 7B in Round 2; strong code/tool-use, ~17 GB fused |
+| mlx-community/Qwen2.5-7B-Instruct-4bit (Round 1) | Apache 2.0 | Original base; ~4 GB fused |
 | mlx-community/Mistral-7B-Instruct-v0.3-4bit | Apache 2.0 | Solid generalist; also the cleanest GGUF export if you ever want Route B |
 | Llama 3.1 8B (4bit) | Meta (gated) | Accept terms on Hugging Face first |
 
 Tool-use and code fluency matter more than raw size here, because the model's job is to emit
-correct RDKit/PyMOL code, not to be an encyclopaedia. Qwen 2.5 7B Instruct (4-bit) is the default.
+correct RDKit/PyMOL code, not to be an encyclopaedia. Started with Qwen 2.5 7B (Round 1), upgraded to 32B (Round 2) for substantially better chemistry reasoning and code generation.
 If a model is not already in MLX 4-bit form, quantise it: `mlx_lm.convert --hf-path <model> -q`.
 
 Serving caveat to note now (it shapes Phase 5): MLX direct GGUF export covers only Llama/Mistral/
@@ -201,16 +202,16 @@ mlx_lm.lora --config config/train_config.yaml --train
 
 Key settings live in `config/train_config.yaml` (a native MLX config):
 
-| Setting | Start value | Note |
-|---|---|---|
-| `model` | `mlx-community/Qwen2.5-7B-Instruct-4bit` | 4-bit base ⇒ QLoRA automatically |
-| `fine_tune_type` | `lora` | or `dora` for a small quality bump |
-| `num_layers` | 16 | layers to fine-tune (-1 = all) |
-| `lora_parameters.rank` | 16 | r. 8 lighter, 32 more expressive |
-| `lora_parameters.scale` | 16.0 | MLX scale (NOT identical to HF alpha; example default ~20, tune) |
-| `iters` | 1000 | MLX counts steps, not epochs: iters ≈ (N / batch_size) × epochs |
-| `learning_rate` | 2e-4 | |
-| `max_seq_length` | 2048 | |
+| Setting | Round 1 (7B) | Round 3 (32B, current) | Note |
+|---|---|---|---|
+| `model` | `Qwen2.5-7B-Instruct-4bit` | `Qwen2.5-32B-Instruct-4bit` | 4-bit base = QLoRA automatically |
+| `fine_tune_type` | `lora` | `lora` | with RSLoRA (`use_rslora: true`) |
+| `num_layers` | 16 | 32 | 64 caused swap thrashing on 64 GB |
+| `lora_parameters.rank` | 32 | 32 | with scale 64.0 (RSLoRA effective 11.3x) |
+| `iters` | 750 | 1,500 | R3 stopped early at 625 (val plateau) |
+| `learning_rate` | 2e-5 | 2e-5 | |
+| `batch_size` | 4 | 4 | 8 was too slow due to memory pressure |
+| `max_seq_length` | 2048 | 2048 | |
 
 Before the first run, reconcile field names against your installed mlx-lm version's example
 (`mlx_lm/examples/lora_config.yaml`): key names have shifted across versions (e.g. `lora_layers`

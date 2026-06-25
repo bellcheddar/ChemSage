@@ -4,6 +4,7 @@ data/sft/*.jsonl
 adapters/
 fused_model/
 chem_sage_32b/
+chem_sage_32b_v2/
 models/
 ChemSage/
 exports/
@@ -11,6 +12,7 @@ exports/
 *.safetensors
 *.npz
 outputs/
+logs/
 .chroma/
 *.lance/
 
