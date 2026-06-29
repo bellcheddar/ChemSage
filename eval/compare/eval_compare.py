@@ -1021,8 +1021,6 @@ def _delta_html(r4_ok: int, r4_tot: int, r3_ok: int, r3_tot: int) -> str:
 
 def _model_card_html(cfg: dict, eval_result: Optional[dict]) -> str:
     color   = cfg.get("color", "#888")
-    is_base = cfg.get("is_baseline", False)
-    badge   = ' ★ baseline' if is_base else ''
 
     if eval_result and not eval_result.get("skipped"):
         agg = _per_example_agg(eval_result)
@@ -1035,7 +1033,7 @@ def _model_card_html(cfg: dict, eval_result: Optional[dict]) -> str:
 
     return f"""
     <div class="model-card" style="border-top:4px solid {color}">
-      <div class="card-name" style="color:{color}">{cfg['display_name']}{badge}</div>
+      <div class="card-name" style="color:{color}">{cfg['display_name']}</div>
       <div class="card-sub">{cfg.get('subtitle','')}</div>
       <div class="card-score">{overall}</div>
       <div class="card-label">overall score</div>
