@@ -205,8 +205,8 @@ Calculating loss...:  96%|█████████▌| 24/25 [06:12<00:14, 14
 Calculating loss...: 100%|██████████| 25/25 [06:25<00:00, 14.22s/it]
 Calculating loss...: 100%|██████████| 25/25 [06:25<00:00, 15.41s/it]
 Iter 101: Val loss 0.101, Val took 385.374s
-Iter 110: Train loss 0.091, Learning Rate 3.600e-06, It/sec 0.024, Tokens/sec 30.662, Trained Tokens 12655, Peak mem 24.670 GB
-Iter 120: Train loss 0.106, Learning Rate 7.600e-06, It/sec 0.024, Tokens/sec 31.789, Trained Tokens 25997, Peak mem 24.670 GB
+Iter 110: Train loss 0.091, Learning Rate 1.992e-05, It/sec 0.024, Tokens/sec 30.662, Trained Tokens 134486, Peak mem 24.670 GB
+Iter 120: Train loss 0.106, Learning Rate 1.989e-05, It/sec 0.024, Tokens/sec 31.789, Trained Tokens 147828, Peak mem 24.670 GB
 
 Calculating loss...:   0%|          | 0/25 [00:00<?, ?it/s]
 Calculating loss...:   4%|▍         | 1/25 [00:14<05:42, 14.25s/it]
@@ -237,8 +237,8 @@ Calculating loss...: 100%|██████████| 25/25 [08:08<00:00, 21
 Calculating loss...: 100%|██████████| 25/25 [08:08<00:00, 19.55s/it]
 Iter 125: Val loss 0.116, Val took 488.642s
 Iter 125: Saved adapter weights to adapters/chem_sage_32b_v2_lora/adapters.safetensors and adapters/chem_sage_32b_v2_lora/0000025_adapters.safetensors.
-Iter 130: Train loss 0.106, Learning Rate 1.160e-05, It/sec 0.022, Tokens/sec 25.512, Trained Tokens 37368, Peak mem 24.670 GB
-Iter 140: Train loss 0.102, Learning Rate 1.560e-05, It/sec 0.021, Tokens/sec 26.615, Trained Tokens 50076, Peak mem 25.207 GB
+Iter 130: Train loss 0.106, Learning Rate 1.985e-05, It/sec 0.022, Tokens/sec 25.512, Trained Tokens 159199, Peak mem 24.670 GB
+Iter 140: Train loss 0.102, Learning Rate 1.981e-05, It/sec 0.021, Tokens/sec 26.615, Trained Tokens 171907, Peak mem 25.207 GB
 
 Calculating loss...:   0%|          | 0/25 [00:00<?, ?it/s]
 Calculating loss...:   4%|▍         | 1/25 [00:17<07:09, 17.88s/it]
@@ -268,10 +268,10 @@ Calculating loss...:  96%|█████████▌| 24/25 [07:37<00:18, 18
 Calculating loss...: 100%|██████████| 25/25 [07:57<00:00, 19.00s/it]
 Calculating loss...: 100%|██████████| 25/25 [07:57<00:00, 19.09s/it]
 Iter 150: Val loss 0.141, Val took 477.366s
-Iter 150: Train loss 0.101, Learning Rate 1.960e-05, It/sec 0.021, Tokens/sec 26.205, Trained Tokens 62529, Peak mem 25.207 GB
+Iter 150: Train loss 0.101, Learning Rate 1.977e-05, It/sec 0.021, Tokens/sec 26.205, Trained Tokens 184360, Peak mem 25.207 GB
 Iter 150: Saved adapter weights to adapters/chem_sage_32b_v2_lora/adapters.safetensors and adapters/chem_sage_32b_v2_lora/0000050_adapters.safetensors.
-Iter 160: Train loss 0.161, Learning Rate 2.000e-05, It/sec 0.024, Tokens/sec 27.857, Trained Tokens 74205, Peak mem 25.207 GB
-Iter 170: Train loss 0.106, Learning Rate 1.999e-05, It/sec 0.025, Tokens/sec 30.594, Trained Tokens 86412, Peak mem 25.207 GB
+Iter 160: Train loss 0.161, Learning Rate 1.972e-05, It/sec 0.024, Tokens/sec 27.857, Trained Tokens 196036, Peak mem 25.207 GB
+Iter 170: Train loss 0.106, Learning Rate 1.966e-05, It/sec 0.025, Tokens/sec 30.594, Trained Tokens 208243, Peak mem 25.207 GB
 
 Calculating loss...:   0%|          | 0/25 [00:00<?, ?it/s]
 Calculating loss...:   4%|▍         | 1/25 [00:23<09:14, 23.11s/it]
@@ -302,8 +302,8 @@ Calculating loss...: 100%|██████████| 25/25 [07:54<00:00, 19
 Calculating loss...: 100%|██████████| 25/25 [07:54<00:00, 18.96s/it]
 Iter 175: Val loss 0.134, Val took 474.074s
 Iter 175: Saved adapter weights to adapters/chem_sage_32b_v2_lora/adapters.safetensors and adapters/chem_sage_32b_v2_lora/0000075_adapters.safetensors.
-Iter 180: Train loss 0.104, Learning Rate 1.998e-05, It/sec 0.024, Tokens/sec 28.314, Trained Tokens 98361, Peak mem 25.207 GB
-Iter 190: Train loss 0.084, Learning Rate 1.997e-05, It/sec 0.023, Tokens/sec 26.139, Trained Tokens 109900, Peak mem 25.207 GB
+Iter 180: Train loss 0.104, Learning Rate 1.961e-05, It/sec 0.024, Tokens/sec 28.314, Trained Tokens 220192, Peak mem 25.207 GB
+Iter 190: Train loss 0.084, Learning Rate 1.954e-05, It/sec 0.023, Tokens/sec 26.139, Trained Tokens 231731, Peak mem 25.207 GB
 
 Calculating loss...:   0%|          | 0/25 [00:00<?, ?it/s]
 Calculating loss...:   4%|▍         | 1/25 [00:21<08:42, 21.75s/it]
@@ -333,10 +333,10 @@ Calculating loss...:  96%|█████████▌| 24/25 [07:42<00:17, 17
 Calculating loss...: 100%|██████████| 25/25 [07:59<00:00, 17.52s/it]
 Calculating loss...: 100%|██████████| 25/25 [07:59<00:00, 19.20s/it]
 Iter 200: Val loss 0.116, Val took 479.967s
-Iter 200: Train loss 0.106, Learning Rate 1.995e-05, It/sec 0.022, Tokens/sec 26.601, Trained Tokens 121831, Peak mem 25.207 GB
+Iter 200: Train loss 0.106, Learning Rate 1.948e-05, It/sec 0.022, Tokens/sec 26.601, Trained Tokens 243662, Peak mem 25.207 GB
 Iter 200: Saved adapter weights to adapters/chem_sage_32b_v2_lora/adapters.safetensors and adapters/chem_sage_32b_v2_lora/0000100_adapters.safetensors.
-Iter 210: Train loss 0.098, Learning Rate 1.993e-05, It/sec 0.025, Tokens/sec 29.075, Trained Tokens 133434, Peak mem 25.207 GB
-Iter 220: Train loss 0.127, Learning Rate 1.990e-05, It/sec 0.023, Tokens/sec 27.274, Trained Tokens 145522, Peak mem 25.207 GB
+Iter 210: Train loss 0.098, Learning Rate 1.941e-05, It/sec 0.025, Tokens/sec 29.075, Trained Tokens 255265, Peak mem 25.207 GB
+Iter 220: Train loss 0.127, Learning Rate 1.933e-05, It/sec 0.023, Tokens/sec 27.274, Trained Tokens 267353, Peak mem 25.207 GB
 
 Calculating loss...:   0%|          | 0/25 [00:00<?, ?it/s]
 Calculating loss...:   4%|▍         | 1/25 [00:16<06:31, 16.31s/it]
@@ -367,8 +367,8 @@ Calculating loss...: 100%|██████████| 25/25 [07:43<00:00, 18
 Calculating loss...: 100%|██████████| 25/25 [07:43<00:00, 18.54s/it]
 Iter 225: Val loss 0.090, Val took 463.465s
 Iter 225: Saved adapter weights to adapters/chem_sage_32b_v2_lora/adapters.safetensors and adapters/chem_sage_32b_v2_lora/0000125_adapters.safetensors.
-Iter 230: Train loss 0.091, Learning Rate 1.987e-05, It/sec 0.025, Tokens/sec 27.386, Trained Tokens 156358, Peak mem 25.207 GB
-Iter 240: Train loss 0.093, Learning Rate 1.983e-05, It/sec 0.022, Tokens/sec 27.423, Trained Tokens 168902, Peak mem 25.207 GB
+Iter 230: Train loss 0.091, Learning Rate 1.925e-05, It/sec 0.025, Tokens/sec 27.386, Trained Tokens 278189, Peak mem 25.207 GB
+Iter 240: Train loss 0.093, Learning Rate 1.916e-05, It/sec 0.022, Tokens/sec 27.423, Trained Tokens 290733, Peak mem 25.207 GB
 
 Calculating loss...:   0%|          | 0/25 [00:00<?, ?it/s]
 Calculating loss...:   4%|▍         | 1/25 [00:10<04:17, 10.74s/it]
@@ -398,10 +398,10 @@ Calculating loss...:  96%|█████████▌| 24/25 [07:25<00:18, 18
 Calculating loss...: 100%|██████████| 25/25 [07:45<00:00, 19.26s/it]
 Calculating loss...: 100%|██████████| 25/25 [07:45<00:00, 18.62s/it]
 Iter 250: Val loss 0.087, Val took 465.572s
-Iter 250: Train loss 0.107, Learning Rate 1.979e-05, It/sec 0.023, Tokens/sec 27.536, Trained Tokens 180798, Peak mem 25.207 GB
+Iter 250: Train loss 0.107, Learning Rate 1.908e-05, It/sec 0.023, Tokens/sec 27.536, Trained Tokens 302629, Peak mem 25.207 GB
 Iter 250: Saved adapter weights to adapters/chem_sage_32b_v2_lora/adapters.safetensors and adapters/chem_sage_32b_v2_lora/0000150_adapters.safetensors.
-Iter 260: Train loss 0.080, Learning Rate 1.975e-05, It/sec 0.023, Tokens/sec 26.943, Trained Tokens 192298, Peak mem 25.207 GB
-Iter 270: Train loss 0.072, Learning Rate 1.970e-05, It/sec 0.023, Tokens/sec 27.520, Trained Tokens 204175, Peak mem 25.207 GB
+Iter 260: Train loss 0.080, Learning Rate 1.898e-05, It/sec 0.023, Tokens/sec 26.943, Trained Tokens 314129, Peak mem 25.207 GB
+Iter 270: Train loss 0.072, Learning Rate 1.889e-05, It/sec 0.023, Tokens/sec 27.520, Trained Tokens 326006, Peak mem 25.207 GB
 
 Calculating loss...:   0%|          | 0/25 [00:00<?, ?it/s]
 Calculating loss...:   4%|▍         | 1/25 [00:19<07:47, 19.48s/it]
@@ -432,8 +432,8 @@ Calculating loss...: 100%|██████████| 25/25 [07:41<00:00, 15
 Calculating loss...: 100%|██████████| 25/25 [07:41<00:00, 18.45s/it]
 Iter 275: Val loss 0.080, Val took 461.348s
 Iter 275: Saved adapter weights to adapters/chem_sage_32b_v2_lora/adapters.safetensors and adapters/chem_sage_32b_v2_lora/0000175_adapters.safetensors.
-Iter 280: Train loss 0.086, Learning Rate 1.964e-05, It/sec 0.025, Tokens/sec 28.518, Trained Tokens 215600, Peak mem 25.207 GB
-Iter 290: Train loss 0.073, Learning Rate 1.959e-05, It/sec 0.025, Tokens/sec 27.752, Trained Tokens 226724, Peak mem 25.207 GB
+Iter 280: Train loss 0.086, Learning Rate 1.878e-05, It/sec 0.025, Tokens/sec 28.518, Trained Tokens 337431, Peak mem 25.207 GB
+Iter 290: Train loss 0.073, Learning Rate 1.868e-05, It/sec 0.025, Tokens/sec 27.752, Trained Tokens 348555, Peak mem 25.207 GB
 
 Calculating loss...:   0%|          | 0/25 [00:00<?, ?it/s]
 Calculating loss...:   4%|▍         | 1/25 [00:20<08:00, 20.04s/it]
@@ -463,10 +463,10 @@ Calculating loss...:  96%|█████████▌| 24/25 [07:30<00:19, 19
 Calculating loss...: 100%|██████████| 25/25 [07:50<00:00, 19.34s/it]
 Calculating loss...: 100%|██████████| 25/25 [07:50<00:00, 18.83s/it]
 Iter 300: Val loss 0.076, Val took 470.706s
-Iter 300: Train loss 0.090, Learning Rate 1.952e-05, It/sec 0.023, Tokens/sec 26.648, Trained Tokens 238146, Peak mem 25.207 GB
+Iter 300: Train loss 0.090, Learning Rate 1.857e-05, It/sec 0.023, Tokens/sec 26.648, Trained Tokens 359977, Peak mem 25.207 GB
 Iter 300: Saved adapter weights to adapters/chem_sage_32b_v2_lora/adapters.safetensors and adapters/chem_sage_32b_v2_lora/0000200_adapters.safetensors.
-Iter 310: Train loss 0.080, Learning Rate 1.946e-05, It/sec 0.024, Tokens/sec 29.305, Trained Tokens 250358, Peak mem 25.207 GB
-Iter 320: Train loss 0.073, Learning Rate 1.939e-05, It/sec 0.022, Tokens/sec 26.957, Trained Tokens 262339, Peak mem 25.207 GB
+Iter 310: Train loss 0.080, Learning Rate 1.845e-05, It/sec 0.024, Tokens/sec 29.305, Trained Tokens 372189, Peak mem 25.207 GB
+Iter 320: Train loss 0.073, Learning Rate 1.834e-05, It/sec 0.022, Tokens/sec 26.957, Trained Tokens 384170, Peak mem 25.207 GB
 
 Calculating loss...:   0%|          | 0/25 [00:00<?, ?it/s]
 Calculating loss...:   4%|▍         | 1/25 [00:22<08:50, 22.09s/it]
@@ -497,8 +497,8 @@ Calculating loss...: 100%|██████████| 25/25 [08:00<00:00, 17
 Calculating loss...: 100%|██████████| 25/25 [08:00<00:00, 19.21s/it]
 Iter 325: Val loss 0.079, Val took 480.147s
 Iter 325: Saved adapter weights to adapters/chem_sage_32b_v2_lora/adapters.safetensors and adapters/chem_sage_32b_v2_lora/0000225_adapters.safetensors.
-Iter 330: Train loss 0.080, Learning Rate 1.931e-05, It/sec 0.023, Tokens/sec 26.531, Trained Tokens 273924, Peak mem 25.207 GB
-Iter 340: Train loss 0.050, Learning Rate 1.923e-05, It/sec 0.021, Tokens/sec 26.521, Trained Tokens 286554, Peak mem 25.207 GB
+Iter 330: Train loss 0.080, Learning Rate 1.822e-05, It/sec 0.023, Tokens/sec 26.531, Trained Tokens 395755, Peak mem 25.207 GB
+Iter 340: Train loss 0.050, Learning Rate 1.809e-05, It/sec 0.021, Tokens/sec 26.521, Trained Tokens 408385, Peak mem 25.207 GB
 
 Calculating loss...:   0%|          | 0/25 [00:00<?, ?it/s]
 Calculating loss...:   4%|▍         | 1/25 [00:19<07:49, 19.54s/it]
@@ -528,10 +528,10 @@ Calculating loss...:  96%|█████████▌| 24/25 [07:50<00:18, 18
 Calculating loss...: 100%|██████████| 25/25 [08:07<00:00, 18.39s/it]
 Calculating loss...: 100%|██████████| 25/25 [08:07<00:00, 19.51s/it]
 Iter 350: Val loss 0.070, Val took 487.648s
-Iter 350: Train loss 0.081, Learning Rate 1.915e-05, It/sec 0.023, Tokens/sec 27.446, Trained Tokens 298722, Peak mem 25.207 GB
+Iter 350: Train loss 0.081, Learning Rate 1.796e-05, It/sec 0.023, Tokens/sec 27.446, Trained Tokens 420553, Peak mem 25.207 GB
 Iter 350: Saved adapter weights to adapters/chem_sage_32b_v2_lora/adapters.safetensors and adapters/chem_sage_32b_v2_lora/0000250_adapters.safetensors.
-Iter 360: Train loss 0.074, Learning Rate 1.907e-05, It/sec 0.024, Tokens/sec 28.296, Trained Tokens 310556, Peak mem 25.207 GB
-Iter 370: Train loss 0.062, Learning Rate 1.898e-05, It/sec 0.023, Tokens/sec 26.828, Trained Tokens 322075, Peak mem 25.207 GB
+Iter 360: Train loss 0.074, Learning Rate 1.783e-05, It/sec 0.024, Tokens/sec 28.296, Trained Tokens 432387, Peak mem 25.207 GB
+Iter 370: Train loss 0.062, Learning Rate 1.769e-05, It/sec 0.023, Tokens/sec 26.828, Trained Tokens 443906, Peak mem 25.207 GB
 
 Calculating loss...:   0%|          | 0/25 [00:00<?, ?it/s]
 Calculating loss...:   4%|▍         | 1/25 [00:20<08:08, 20.36s/it]
@@ -562,8 +562,8 @@ Calculating loss...: 100%|██████████| 25/25 [07:30<00:00, 16
 Calculating loss...: 100%|██████████| 25/25 [07:30<00:00, 18.01s/it]
 Iter 375: Val loss 0.082, Val took 450.278s
 Iter 375: Saved adapter weights to adapters/chem_sage_32b_v2_lora/adapters.safetensors and adapters/chem_sage_32b_v2_lora/0000275_adapters.safetensors.
-Iter 380: Train loss 0.061, Learning Rate 1.888e-05, It/sec 0.023, Tokens/sec 28.765, Trained Tokens 334456, Peak mem 25.207 GB
-Iter 390: Train loss 0.052, Learning Rate 1.878e-05, It/sec 0.022, Tokens/sec 27.475, Trained Tokens 347147, Peak mem 25.207 GB
+Iter 380: Train loss 0.061, Learning Rate 1.755e-05, It/sec 0.023, Tokens/sec 28.765, Trained Tokens 456287, Peak mem 25.207 GB
+Iter 390: Train loss 0.052, Learning Rate 1.741e-05, It/sec 0.022, Tokens/sec 27.475, Trained Tokens 468978, Peak mem 25.207 GB
 
 Calculating loss...:   0%|          | 0/25 [00:00<?, ?it/s]
 Calculating loss...:   4%|▍         | 1/25 [00:19<07:44, 19.37s/it]
@@ -593,10 +593,10 @@ Calculating loss...:  96%|█████████▌| 24/25 [07:42<00:19, 19
 Calculating loss...: 100%|██████████| 25/25 [07:58<00:00, 18.67s/it]
 Calculating loss...: 100%|██████████| 25/25 [07:58<00:00, 19.15s/it]
 Iter 400: Val loss 0.077, Val took 478.774s
-Iter 400: Train loss 0.066, Learning Rate 1.868e-05, It/sec 0.025, Tokens/sec 26.826, Trained Tokens 357934, Peak mem 25.207 GB
+Iter 400: Train loss 0.066, Learning Rate 1.726e-05, It/sec 0.025, Tokens/sec 26.826, Trained Tokens 479765, Peak mem 25.207 GB
 Iter 400: Saved adapter weights to adapters/chem_sage_32b_v2_lora/adapters.safetensors and adapters/chem_sage_32b_v2_lora/0000300_adapters.safetensors.
-Iter 410: Train loss 0.084, Learning Rate 1.858e-05, It/sec 0.023, Tokens/sec 26.976, Trained Tokens 369558, Peak mem 25.207 GB
-Iter 420: Train loss 0.070, Learning Rate 1.847e-05, It/sec 0.022, Tokens/sec 25.795, Trained Tokens 381048, Peak mem 25.207 GB
+Iter 410: Train loss 0.084, Learning Rate 1.711e-05, It/sec 0.023, Tokens/sec 26.976, Trained Tokens 491389, Peak mem 25.207 GB
+Iter 420: Train loss 0.070, Learning Rate 1.696e-05, It/sec 0.022, Tokens/sec 25.795, Trained Tokens 502879, Peak mem 25.207 GB
 
 Calculating loss...:   0%|          | 0/25 [00:00<?, ?it/s]
 Calculating loss...:   4%|▍         | 1/25 [00:22<08:52, 22.19s/it]
@@ -627,8 +627,8 @@ Calculating loss...: 100%|██████████| 25/25 [07:44<00:00, 16
 Calculating loss...: 100%|██████████| 25/25 [07:44<00:00, 18.56s/it]
 Iter 425: Val loss 0.074, Val took 464.030s
 Iter 425: Saved adapter weights to adapters/chem_sage_32b_v2_lora/adapters.safetensors and adapters/chem_sage_32b_v2_lora/0000325_adapters.safetensors.
-Iter 430: Train loss 0.076, Learning Rate 1.835e-05, It/sec 0.022, Tokens/sec 27.774, Trained Tokens 393506, Peak mem 25.207 GB
-Iter 440: Train loss 0.077, Learning Rate 1.824e-05, It/sec 0.021, Tokens/sec 28.417, Trained Tokens 407137, Peak mem 25.207 GB
+Iter 430: Train loss 0.076, Learning Rate 1.680e-05, It/sec 0.022, Tokens/sec 27.774, Trained Tokens 515337, Peak mem 25.207 GB
+Iter 440: Train loss 0.077, Learning Rate 1.664e-05, It/sec 0.021, Tokens/sec 28.417, Trained Tokens 528968, Peak mem 25.207 GB
 
 Calculating loss...:   0%|          | 0/25 [00:00<?, ?it/s]
 Calculating loss...:   4%|▍         | 1/25 [00:17<07:09, 17.90s/it]
@@ -658,10 +658,10 @@ Calculating loss...:  96%|█████████▌| 24/25 [07:24<00:19, 19
 Calculating loss...: 100%|██████████| 25/25 [07:37<00:00, 17.23s/it]
 Calculating loss...: 100%|██████████| 25/25 [07:37<00:00, 18.28s/it]
 Iter 450: Val loss 0.068, Val took 457.085s
-Iter 450: Train loss 0.063, Learning Rate 1.811e-05, It/sec 0.023, Tokens/sec 28.010, Trained Tokens 419213, Peak mem 25.207 GB
+Iter 450: Train loss 0.063, Learning Rate 1.647e-05, It/sec 0.023, Tokens/sec 28.010, Trained Tokens 541044, Peak mem 25.207 GB
 Iter 450: Saved adapter weights to adapters/chem_sage_32b_v2_lora/adapters.safetensors and adapters/chem_sage_32b_v2_lora/0000350_adapters.safetensors.
-Iter 460: Train loss 0.045, Learning Rate 1.799e-05, It/sec 0.024, Tokens/sec 28.889, Trained Tokens 431341, Peak mem 25.207 GB
-Iter 470: Train loss 0.057, Learning Rate 1.786e-05, It/sec 0.023, Tokens/sec 26.031, Trained Tokens 442837, Peak mem 25.207 GB
+Iter 460: Train loss 0.045, Learning Rate 1.631e-05, It/sec 0.024, Tokens/sec 28.889, Trained Tokens 553172, Peak mem 25.207 GB
+Iter 470: Train loss 0.057, Learning Rate 1.614e-05, It/sec 0.023, Tokens/sec 26.031, Trained Tokens 564668, Peak mem 25.207 GB
 
 Calculating loss...:   0%|          | 0/25 [00:00<?, ?it/s]
 Calculating loss...:   4%|▍         | 1/25 [00:20<08:19, 20.80s/it]
@@ -692,8 +692,8 @@ Calculating loss...: 100%|██████████| 25/25 [07:54<00:00, 19
 Calculating loss...: 100%|██████████| 25/25 [07:54<00:00, 18.96s/it]
 Iter 475: Val loss 0.064, Val took 474.028s
 Iter 475: Saved adapter weights to adapters/chem_sage_32b_v2_lora/adapters.safetensors and adapters/chem_sage_32b_v2_lora/0000375_adapters.safetensors.
-Iter 480: Train loss 0.076, Learning Rate 1.773e-05, It/sec 0.021, Tokens/sec 25.978, Trained Tokens 455381, Peak mem 25.207 GB
-Iter 490: Train loss 0.074, Learning Rate 1.760e-05, It/sec 0.019, Tokens/sec 22.861, Trained Tokens 467448, Peak mem 25.207 GB
+Iter 480: Train loss 0.076, Learning Rate 1.597e-05, It/sec 0.021, Tokens/sec 25.978, Trained Tokens 577212, Peak mem 25.207 GB
+Iter 490: Train loss 0.074, Learning Rate 1.579e-05, It/sec 0.019, Tokens/sec 22.861, Trained Tokens 589279, Peak mem 25.207 GB
 
 Calculating loss...:   0%|          | 0/25 [00:00<?, ?it/s]
 Calculating loss...:   4%|▍         | 1/25 [00:16<06:27, 16.14s/it]
@@ -723,10 +723,10 @@ Calculating loss...:  96%|█████████▌| 24/25 [07:25<00:17, 17
 Calculating loss...: 100%|██████████| 25/25 [07:46<00:00, 18.80s/it]
 Calculating loss...: 100%|██████████| 25/25 [07:46<00:00, 18.66s/it]
 Iter 500: Val loss 0.059, Val took 466.605s
-Iter 500: Train loss 0.059, Learning Rate 1.746e-05, It/sec 0.021, Tokens/sec 24.241, Trained Tokens 478775, Peak mem 25.207 GB
+Iter 500: Train loss 0.059, Learning Rate 1.561e-05, It/sec 0.021, Tokens/sec 24.241, Trained Tokens 600606, Peak mem 25.207 GB
 Iter 500: Saved adapter weights to adapters/chem_sage_32b_v2_lora/adapters.safetensors and adapters/chem_sage_32b_v2_lora/0000400_adapters.safetensors.
-Iter 510: Train loss 0.084, Learning Rate 1.732e-05, It/sec 0.021, Tokens/sec 24.508, Trained Tokens 490232, Peak mem 25.207 GB
-Iter 520: Train loss 0.060, Learning Rate 1.717e-05, It/sec 0.020, Tokens/sec 22.756, Trained Tokens 501718, Peak mem 25.207 GB
+Iter 510: Train loss 0.084, Learning Rate 1.543e-05, It/sec 0.021, Tokens/sec 24.508, Trained Tokens 612063, Peak mem 25.207 GB
+Iter 520: Train loss 0.060, Learning Rate 1.525e-05, It/sec 0.020, Tokens/sec 22.756, Trained Tokens 623549, Peak mem 25.207 GB
 
 Calculating loss...:   0%|          | 0/25 [00:00<?, ?it/s]
 Calculating loss...:   4%|▍         | 1/25 [00:22<09:07, 22.81s/it]
@@ -757,8 +757,8 @@ Calculating loss...: 100%|██████████| 25/25 [08:07<00:00, 18
 Calculating loss...: 100%|██████████| 25/25 [08:07<00:00, 19.51s/it]
 Iter 525: Val loss 0.062, Val took 487.687s
 Iter 525: Saved adapter weights to adapters/chem_sage_32b_v2_lora/adapters.safetensors and adapters/chem_sage_32b_v2_lora/0000425_adapters.safetensors.
-Iter 530: Train loss 0.080, Learning Rate 1.703e-05, It/sec 0.021, Tokens/sec 26.641, Trained Tokens 514385, Peak mem 25.207 GB
-Iter 540: Train loss 0.058, Learning Rate 1.688e-05, It/sec 0.025, Tokens/sec 29.128, Trained Tokens 526100, Peak mem 25.207 GB
+Iter 530: Train loss 0.080, Learning Rate 1.506e-05, It/sec 0.021, Tokens/sec 26.641, Trained Tokens 636216, Peak mem 25.207 GB
+Iter 540: Train loss 0.058, Learning Rate 1.487e-05, It/sec 0.025, Tokens/sec 29.128, Trained Tokens 647931, Peak mem 25.207 GB
 
 Calculating loss...:   0%|          | 0/25 [00:00<?, ?it/s]
 Calculating loss...:   4%|▍         | 1/25 [00:20<08:18, 20.76s/it]
@@ -788,10 +788,10 @@ Calculating loss...:  96%|█████████▌| 24/25 [07:02<00:18, 18
 Calculating loss...: 100%|██████████| 25/25 [07:19<00:00, 18.08s/it]
 Calculating loss...: 100%|██████████| 25/25 [07:19<00:00, 17.57s/it]
 Iter 550: Val loss 0.062, Val took 439.285s
-Iter 550: Train loss 0.048, Learning Rate 1.672e-05, It/sec 0.024, Tokens/sec 28.473, Trained Tokens 538012, Peak mem 25.207 GB
+Iter 550: Train loss 0.048, Learning Rate 1.468e-05, It/sec 0.024, Tokens/sec 28.473, Trained Tokens 659843, Peak mem 25.207 GB
 Iter 550: Saved adapter weights to adapters/chem_sage_32b_v2_lora/adapters.safetensors and adapters/chem_sage_32b_v2_lora/0000450_adapters.safetensors.
-Iter 560: Train loss 0.075, Learning Rate 1.657e-05, It/sec 0.021, Tokens/sec 23.953, Trained Tokens 549427, Peak mem 25.207 GB
-Iter 570: Train loss 0.065, Learning Rate 1.641e-05, It/sec 0.020, Tokens/sec 23.711, Trained Tokens 561208, Peak mem 25.207 GB
+Iter 560: Train loss 0.075, Learning Rate 1.449e-05, It/sec 0.021, Tokens/sec 23.953, Trained Tokens 671258, Peak mem 25.207 GB
+Iter 570: Train loss 0.065, Learning Rate 1.430e-05, It/sec 0.020, Tokens/sec 23.711, Trained Tokens 683039, Peak mem 25.207 GB
 
 Calculating loss...:   0%|          | 0/25 [00:00<?, ?it/s]
 Calculating loss...:   4%|▍         | 1/25 [00:23<09:12, 23.04s/it]
@@ -822,8 +822,8 @@ Calculating loss...: 100%|██████████| 25/25 [08:19<00:00, 18
 Calculating loss...: 100%|██████████| 25/25 [08:19<00:00, 19.97s/it]
 Iter 575: Val loss 0.062, Val took 499.272s
 Iter 575: Saved adapter weights to adapters/chem_sage_32b_v2_lora/adapters.safetensors and adapters/chem_sage_32b_v2_lora/0000475_adapters.safetensors.
-Iter 580: Train loss 0.060, Learning Rate 1.624e-05, It/sec 0.026, Tokens/sec 28.199, Trained Tokens 572154, Peak mem 25.207 GB
-Iter 590: Train loss 0.061, Learning Rate 1.608e-05, It/sec 0.021, Tokens/sec 27.363, Trained Tokens 584903, Peak mem 25.207 GB
+Iter 580: Train loss 0.060, Learning Rate 1.410e-05, It/sec 0.026, Tokens/sec 28.199, Trained Tokens 693985, Peak mem 25.207 GB
+Iter 590: Train loss 0.061, Learning Rate 1.390e-05, It/sec 0.021, Tokens/sec 27.363, Trained Tokens 706734, Peak mem 25.207 GB
 
 Calculating loss...:   0%|          | 0/25 [00:00<?, ?it/s]
 Calculating loss...:   4%|▍         | 1/25 [00:22<09:11, 22.96s/it]
@@ -853,10 +853,10 @@ Calculating loss...:  96%|█████████▌| 24/25 [08:45<00:21, 21
 Calculating loss...: 100%|██████████| 25/25 [09:08<00:00, 22.40s/it]
 Calculating loss...: 100%|██████████| 25/25 [09:08<00:00, 21.96s/it]
 Iter 600: Val loss 0.060, Val took 549.032s
-Iter 600: Train loss 0.073, Learning Rate 1.591e-05, It/sec 0.023, Tokens/sec 27.516, Trained Tokens 597022, Peak mem 25.207 GB
+Iter 600: Train loss 0.073, Learning Rate 1.370e-05, It/sec 0.023, Tokens/sec 27.516, Trained Tokens 718853, Peak mem 25.207 GB
 Iter 600: Saved adapter weights to adapters/chem_sage_32b_v2_lora/adapters.safetensors and adapters/chem_sage_32b_v2_lora/0000500_adapters.safetensors.
-Iter 610: Train loss 0.060, Learning Rate 1.574e-05, It/sec 0.021, Tokens/sec 24.572, Trained Tokens 608967, Peak mem 25.207 GB
-Iter 620: Train loss 0.069, Learning Rate 1.557e-05, It/sec 0.021, Tokens/sec 25.124, Trained Tokens 621124, Peak mem 25.207 GB
+Iter 610: Train loss 0.060, Learning Rate 1.350e-05, It/sec 0.021, Tokens/sec 24.572, Trained Tokens 730798, Peak mem 25.207 GB
+Iter 620: Train loss 0.069, Learning Rate 1.330e-05, It/sec 0.021, Tokens/sec 25.124, Trained Tokens 742955, Peak mem 25.207 GB
 
 Calculating loss...:   0%|          | 0/25 [00:00<?, ?it/s]
 Calculating loss...:   4%|▍         | 1/25 [00:17<06:50, 17.09s/it]
@@ -887,6 +887,6 @@ Calculating loss...: 100%|██████████| 25/25 [08:39<00:00, 21
 Calculating loss...: 100%|██████████| 25/25 [08:39<00:00, 20.77s/it]
 Iter 625: Val loss 0.054, Val took 519.279s
 Iter 625: Saved adapter weights to adapters/chem_sage_32b_v2_lora/adapters.safetensors and adapters/chem_sage_32b_v2_lora/0000525_adapters.safetensors.
-Iter 630: Train loss 0.070, Learning Rate 1.539e-05, It/sec 0.022, Tokens/sec 25.680, Trained Tokens 632696, Peak mem 25.207 GB
+Iter 630: Train loss 0.070, Learning Rate 1.309e-05, It/sec 0.022, Tokens/sec 25.680, Trained Tokens 754527, Peak mem 25.207 GB
 /opt/anaconda3/envs/python_3_11_15_chemsage/lib/python3.11/multiprocessing/resource_tracker.py:254: UserWarning: resource_tracker: There appear to be 1 leaked semaphore objects to clean up at shutdown
   warnings.warn('resource_tracker: There appear to be %d '

@@ -99,8 +99,8 @@ _VAL_TOOK_RE = re.compile(
 
 # Ordered list of (key, label, unit) for training metrics chart
 _TRAIN_METRIC_INFO = [
-    ("train_loss",     "Training Loss",   ""),
     ("learning_rate",  "Learning Rate",   ""),
+    ("train_loss",     "Training Loss",   ""),
     ("itps",           "It / sec",        "it/s"),
     ("tokens_per_sec", "Tokens / sec",    "tok/s"),
     ("trained_tokens", "Trained Tokens",  ""),
