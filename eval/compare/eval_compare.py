@@ -1056,6 +1056,7 @@ def _profile_row(label: str, values: list[str]) -> str:
 
 def _model_profile_table(model_configs: list[dict], eval_results: dict) -> str:
     ids = [c["id"] for c in model_configs]
+    n_cols = len(model_configs) + 1  # Attribute column + one per model
 
     def vals(key: str, default: str = "—") -> list[str]:
         return [str(c.get(key, default)) for c in model_configs]
@@ -1076,7 +1077,7 @@ def _model_profile_table(model_configs: list[dict], eval_results: dict) -> str:
     ) + "</tr>"
 
     rows = "".join([
-        "<tr class='section-row'><td colspan='5'>Architecture</td></tr>",
+        f"<tr class='section-row'><td colspan='{n_cols}'>Architecture</td></tr>",
         _profile_row("Base model",          vals("base_model")),
         _profile_row("Parameters (total)",  vals("params_total")),
         _profile_row("Parameters (trained)",vals("params_trainable")),
@@ -1085,7 +1086,7 @@ def _model_profile_table(model_configs: list[dict], eval_results: dict) -> str:
         _profile_row("Rank / scale",        [f"{c.get('lora_rank','?')} / {c.get('lora_scale','?')}" for c in model_configs]),
         _profile_row("Adapted layers",      [f"{c.get('adapted_layers','?')} / {c.get('total_layers','?')}" for c in model_configs]),
 
-        "<tr class='section-row'><td colspan='5'>Training</td></tr>",
+        f"<tr class='section-row'><td colspan='{n_cols}'>Training</td></tr>",
         _profile_row("Learning rate",       vals("learning_rate")),
         _profile_row("LR schedule",         vals("lr_schedule")),
         _profile_row("Batch size",          vals("batch_size")),
@@ -1096,17 +1097,17 @@ def _model_profile_table(model_configs: list[dict], eval_results: dict) -> str:
         _profile_row("Behaviour classes",   vals("behaviour_classes")),
         _profile_row("Duration",            vals("training_duration")),
 
-        "<tr class='section-row'><td colspan='5'>Training outcomes</td></tr>",
+        f"<tr class='section-row'><td colspan='{n_cols}'>Training outcomes</td></tr>",
         _profile_row("Best val loss",       [f"<b>{c.get('best_val_loss','?')}</b> @ iter {c.get('best_val_iter','?')}" for c in model_configs]),
         _profile_row("Final train loss",    [str(c.get("final_train_loss") or "(pending)") for c in model_configs]),
         _profile_row("Peak train mem (GB)", vals("peak_memory_gb")),
         _profile_row("Fused model size (GB)", vals("fused_size_gb")),
 
-        "<tr class='section-row'><td colspan='5'>Corpus</td></tr>",
+        f"<tr class='section-row'><td colspan='{n_cols}'>Corpus</td></tr>",
         _profile_row("Corpus chunks",       vals("corpus_chunks")),
         _profile_row("Corpus notes",        vals("corpus_note")),
 
-        "<tr class='section-row'><td colspan='5'>Eval runtime</td></tr>",
+        f"<tr class='section-row'><td colspan='{n_cols}'>Eval runtime</td></tr>",
         _profile_row("Mean latency (s)",    res_vals(lambda e: str(e["mean_latency"]))),
         _profile_row("Throughput (tok/s)",  res_vals(lambda e: str(e["tok_per_sec"]))),
         _profile_row("Eval duration (min)", res_vals(lambda e: str(e["total_min"]))),
