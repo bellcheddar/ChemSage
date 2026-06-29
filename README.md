@@ -1,4 +1,6 @@
-# 🧪 ChemSage
+<p align="center"><img src="assets/chemsage_logo.jpg" width="180" alt="ChemSage logo"></p>
+
+# ChemSage
 
 > **A hybrid, chemically aware LLM for drug discovery: RAG for facts, a QLoRA-tuned model for behaviour, and live RDKit/PyMOL tool calls for chemical truth. Fine-tuned and served locally on Apple Silicon with MLX-LM.**
 
