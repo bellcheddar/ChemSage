@@ -13,6 +13,23 @@ computed live by trusted tools rather than guessed. It is useful for: interrogat
 assay and SAR data, triaging compounds, generating correct PyMOL/RDKit scripts, and interpreting
 docking and interaction output, all on local hardware.
 
+**Initial idea:** Fed up with token, model and upload document limits? Then why not run your own
+AI models on Mac hardware? Thanks to [@ai.christianson](https://www.tiktok.com/@ai.christianson)
+on TikTok for highlighting the following method to implement MLX-LM optimised fine-tuning of a
+local LLM on Mac hardware: https://www.tiktok.com/@ai.christianson/video/7538150476467014943?lang=en
+
+**Disclaimer:** I am not a professional coder! This is an exercise in Vibe Coding as a Structural
+Biologist to get the job done. Use at your own risk, and double check the science. I am still
+working on validation of the Chemistry and Biology. This is a proof of concept exercise to
+demonstrate what can be achieved using moderate hardware and limited coding experience.
+
+**Project links:**
+
+- [GitHub](https://github.com/bellcheddar/ChemSage)
+- [My blog on the making of ChemSage](https://marcdeller.com/chemsage)
+- [Model data and evaluation stats](https://marcdeller.com/chemsage_evaluation)
+- [Models on Hugging Face](https://huggingface.co/Dellboy)
+
 ## Models on HuggingFace Hub
 
 | Model | HuggingFace | Base | Round |
