@@ -1359,7 +1359,7 @@ def html_report(
     ]
     _all = [(c["id"], c["display_name"]) for c in model_configs]
     _default_cmp  = _evaled[-1][0] if _evaled else baseline_id
-    _default_base = baseline_id
+    _default_base = model_configs[0]["id"]  # always compare vs Round 1
 
     def _opt(val: str, label: str, sel_val: str) -> str:
         s = " selected" if val == sel_val else ""
@@ -1372,7 +1372,7 @@ def html_report(
         f'<label>Compare: <select id="cmp-select">{cmp_opts}</select></label>'
         f'<label>vs.&nbsp;Baseline: <select id="base-select">{base_opts}</select></label>'
         '<label class="toggle-label">'
-        '<input type="checkbox" id="na-toggle">&nbsp;'
+        '<input type="checkbox" id="na-toggle" checked>&nbsp;'
         "Show N/A for metrics models weren't trained on"
         "</label>"
         "</div>"
@@ -1433,6 +1433,7 @@ def html_report(
     if (baseSel) baseSel.addEventListener('change', updateDelta);
     if (naTog)   naTog.addEventListener('change',   updateNA);
     updateDelta();
+    updateNA();
   });
 })();
 </script>"""
@@ -1560,11 +1561,6 @@ def html_report(
 
         <!-- ── Metric comparison ── -->
         <h2>Metric Comparison</h2>
-        <p class="section-note" style="margin-bottom:.6rem">
-          <span class="r4-tag">R4</span> = metric introduced in Round 4 eval harness.
-          Use the controls below to change the Δ comparison pair, or toggle N/A for
-          metrics models weren't trained on.
-        </p>
         {metric_controls}
         {metric_t}
 
