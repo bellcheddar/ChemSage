@@ -38,20 +38,30 @@ This is the **Round 3 fused model** — the current production checkpoint.
 | Peak memory | 25.2 GB |
 | Fused model size | ~17 GB |
 
-## Evaluation (Round 3)
+## Evaluation (5-round comparative, 2026-06-29)
 
-Evaluated on 500 held-out test examples via `eval/eval_chem.py` against `mlx_lm.server`.
+Evaluated on 100 shared R5 test examples (seed=42) via `eval/compare/eval_compare.py`.
+Scores = examples where all instances correct / 100 examples (per-example pass/fail).
+Full report: `eval/compare/results/compare_20260629_1928.html`.
 
-| Metric | Score |
-|---|---|
-| SMILES validity | 99% (494/499) |
-| Tool executability | 99% (437/442 code blocks run without error) |
-| Numerical fidelity | 68% (363/533 values match RDKit recompute) |
-| **Overall** | **89%** |
+| Metric | R1 | R2 | R3 (this) ★ | R4 | R5 |
+|---|---|---|---|---|---|
+| SMILES validity | 100% | 100% | **100%** | 100% | 100% |
+| SMARTS validity | N/A | 0% | **100%** | 55% | 100% |
+| Tool executability | 0% | 28% | **79%** | 71% | 95% |
+| Code attempted | 14% | 41% | **100%** | 97% | 100% |
+| Python extended | 36% | 34% | **78%** | 69% | 99% |
+| Code-then-quote | N/A | 0% | **47%** | 19% | 61% |
+| Numerical fidelity | N/A | 18% | **57%** | 47% | 89% |
+| Rounding precision | 100% | 100% | **98%** | 98% | 99% |
+| Refusal accuracy | 98% | 98% | **97%** | 98% | 100% |
+| QED range | 100% | 100% | **100%** | 100% | 100% |
+| PDB ID validity | 100% | 100% | **100%** | 100% | 100% |
+| PyMOL syntax | 77% | 97% | **89%** | 89% | 90% |
+| Degeneration-free | 93% | 96% | **91%** | 98% | 100% |
+| **Overall** | **72%** | **63%** | **87%** | **80%** | **95%** |
 
-The remaining fidelity gap (68%) is addressed in Round 4: the model sometimes quotes properties
-from prose rather than from code output. Round 4 adds `code_then_quote` and RAFT-style examples
-that enforce the "compute then state" pattern.
+Original scorecard (500 examples, `eval/eval_chem.py`): SMILES 99%, exec 99%, fidelity 68% (overall 89%).
 
 ## Usage
 
@@ -84,31 +94,7 @@ mlx_lm.server --model models/chem_sage_32b_v3 --port 8081
 Round 4 training completed 2026-06-27 (1,500 iters, ~43 h). Best val loss **0.041** at iter 950
 beats this model's 0.054 by 24%. Fused model saved to `models/chem_sage_32b_v4/`.
 
-## Comparative evaluation (2026-06-29, in progress)
-
-All 5 rounds evaluated on the same 100 R5 test examples (seed=42) via `eval/compare/eval_compare.py`.
-Scores = examples where all instances correct / 100 examples (per-example pass/fail).
-
-| Metric | R1 | R2 | **R3 (this)** | R4 | R5 |
-|---|---|---|---|---|---|
-| SMILES validity | 2% | 10% | **67%** | — | — |
-| SMARTS validity | N/A | 0% | **5%** | — | — |
-| Tool executability | 0% | 5% | **54%** | — | — |
-| Code attempted | 4% | 12% | **29%** | — | — |
-| Python extended | 3% | 11% | **59%** | — | — |
-| Code-then-quote | N/A | 0% | **12%** | — | — |
-| Numerical fidelity | N/A | 0% | **11%** | — | — |
-| Rounding precision | 35% | 25% | **36%** | — | — |
-| Refusal accuracy | 98% | 98% | **97%** | — | — |
-| QED range | 20% | 14% | **9%** | — | — |
-| PDB ID validity | 22% | 28% | **23%** | — | — |
-| PyMOL syntax | 0% | 14% | **6%** | — | — |
-| Degeneration-free | 93% | 96% | **91%** | — | — |
-
-*R4/R5 in progress. Full report: `eval/compare/results/`. Note: scores use updated per-example
-methodology (examples fully correct / 100) rather than per-instance accuracy.*
-
-Use `eval/eval_chem_original.py` to reproduce the original 3-metric scores on 500 examples.
+Use `eval/eval_chem_original.py` to reproduce the original 3-metric scorecard (500 examples).
 
 ## Compatibility note (2026-06-29)
 

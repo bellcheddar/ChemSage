@@ -37,18 +37,30 @@ This is the **Round 2 fused model** — the first 32B checkpoint; superseded by 
 | Peak memory | 26.1 GB |
 | Fused model size | ~17 GB |
 
-## Evaluation (Round 2)
+## Evaluation (5-round comparative, 2026-06-29)
 
-Evaluated on 150 held-out test examples via `eval/eval_chem_original.py`.
+Evaluated on 100 shared R5 test examples (seed=42) via `eval/compare/eval_compare.py`.
+Scores = examples where all instances correct / 100 examples (per-example pass/fail).
+Full report: `eval/compare/results/compare_20260629_1928.html`.
 
-| Metric | Score |
-|---|---|
-| SMILES validity | 100% (25/25) |
-| Tool executability | 41% (72/174 code blocks) |
-| Numerical fidelity | 10% (7/73 values) |
-| **Overall** | **51%** |
+| Metric | R1 | R2 (this) | R3 | R4 | R5 |
+|---|---|---|---|---|---|
+| SMILES validity | 100% | 100% | 100% | 100% | 100% |
+| SMARTS validity | N/A | 0% | 100% | 55% | 100% |
+| Tool executability | 0% | 28% | 79% | 71% | 95% |
+| Code attempted | 14% | 41% | 100% | 97% | 100% |
+| Python extended | 36% | 34% | 78% | 69% | 99% |
+| Code-then-quote | N/A | 0% | 47% | 19% | 61% |
+| Numerical fidelity | N/A | 18% | 57% | 47% | 89% |
+| Rounding precision | 100% | 100% | 98% | 98% | 99% |
+| Refusal accuracy | 98% | 98% | 97% | 98% | 100% |
+| QED range | 100% | 100% | 100% | 100% | 100% |
+| PDB ID validity | 100% | 100% | 100% | 100% | 100% |
+| PyMOL syntax | 77% | 97% | 89% | 89% | 90% |
+| Degeneration-free | 93% | 96% | 91% | 98% | 100% |
+| **Overall** | **72%** | **63%** | **87%** | **80%** | **95%** |
 
-Superseded by Round 3 (val loss 0.054, exec 99%, fidelity 68%) and Round 4.
+Superseded by Round 3+ on exec, fidelity, and breadth. Original scorecard (150 examples, `eval/eval_chem_original.py`): SMILES 100%, exec 41%, fidelity 10%.
 
 ## Training history
 

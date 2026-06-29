@@ -42,37 +42,32 @@ This is the **Round 4 fused model** — the current production checkpoint, fused
 | Fused model size | ~17.2 GB |
 | Training duration | ~43 h (2026-06-25 to 2026-06-27) |
 
-## Evaluation (comparative, 2026-06-27)
+## Evaluation (5-round comparative, 2026-06-29)
 
-Evaluated across all 4 model rounds on the same 100 R4 test examples (seed=42) via
-`eval/compare/eval_compare.py`. Full report: `eval/compare/results/compare_20260627_1753.html`.
-
-Scores use the corrected eval harness (v4): PyMOL command-line scripts excluded from PyExec;
-Biopython/Plotly installed; FileNotFoundError forgiven; QED regex fixed; QED added to
-numerical fidelity; degeneration, code-attempted, PDB ID validity, PyMOL syntax, and SMARTS
-validity metrics added (13 total).
-
-5-round eval in progress (2026-06-29) on 100 shared R5 test examples (seed=42).
+Evaluated on 100 shared R5 test examples (seed=42) via `eval/compare/eval_compare.py`.
 Scores = examples where all instances correct / 100 examples (per-example pass/fail).
-Full report: `eval/compare/results/` (once complete).
+Full report: `eval/compare/results/compare_20260629_1928.html`.
 
 | Metric | Round 1 | Round 2 | Round 3 | **Round 4** | Round 5 |
 |---|---|---|---|---|---|
-| SMILES validity | 2% | 10% | 67% | — | — |
-| SMARTS validity | N/A | 0% | 5% | — | — |
-| Tool executability | 0% | 5% | 54% | — | — |
-| Code attempted | 4% | 12% | 29% | — | — |
-| Python extended | 3% | 11% | 59% | — | — |
-| Code-then-quote | N/A | 0% | 12% | — | — |
-| Numerical fidelity | N/A | 0% | 11% | — | — |
-| Rounding precision | 35% | 25% | 36% | — | — |
-| Refusal accuracy | 98% | 98% | 97% | — | — |
-| QED range | 20% | 14% | 9% | — | — |
-| PDB ID validity | 22% | 28% | 23% | — | — |
-| PyMOL syntax | 0% | 14% | 6% | — | — |
-| Degeneration-free | 93% | 96% | 91% | — | — |
+| SMILES validity | 100% | 100% | 100% | **100%** | 100% |
+| SMARTS validity | N/A | 0% | 100% | **55%** | 100% |
+| Tool executability | 0% | 28% | 79% | **71%** | 95% |
+| Code attempted | 14% | 41% | 100% | **97%** | 100% |
+| Python extended | 36% | 34% | 78% | **69%** | 99% |
+| Code-then-quote | N/A | 0% | 47% | **19%** | 61% |
+| Numerical fidelity | N/A | 18% | 57% | **47%** | 89% |
+| Rounding precision | 100% | 100% | 98% | **98%** | 99% |
+| Refusal accuracy | 98% | 98% | 97% | **98%** | 100% |
+| QED range | 100% | 100% | 100% | **100%** | 100% |
+| PDB ID validity | 100% | 100% | 100% | **100%** | 100% |
+| PyMOL syntax | 77% | 97% | 89% | **89%** | 90% |
+| Degeneration-free | 93% | 96% | 91% | **98%** | 100% |
+| **Overall** | **72%** | **63%** | **87%** | **80%** | **95%** |
 
-*R4/R5 results pending completion of running eval.*
+R4 regressed on exec metrics vs R3 due to dataset distribution shift (more PyMOL/structural content,
+fewer pure-RDKit drills). R5 corrected this with `pyexec_drill`, `code_then_quote_v2`, and
+`fidelity_multistep` generators — exec reached 95%, fidelity 89%.
 
 ## Usage
 

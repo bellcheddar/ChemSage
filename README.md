@@ -169,37 +169,36 @@ Round 5 **early-stopped 2026-06-29** at iter 2000 of 3,000. Val loss plateaued a
 
 Scorecard files: `eval/scorecards/scorecard_r1_7b.html`, `scorecard_r2_32b.html`, `scorecard_r3_32b_v2.html`.
 
-#### Comparative eval — all 4 rounds (2026-06-27, `eval/compare/eval_compare.py`)
+#### Comparative eval — all 5 rounds (2026-06-29, `eval/compare/eval_compare.py`)
 
-100 shared R4 test examples (seed=42). Full report: `eval/compare/results/compare_20260627_1753.html`.
+100 shared R5 test examples (seed=42). Full report: `eval/compare/results/compare_20260629_1928.html`.
 
-Scores use the corrected eval harness (v4, `eval_rescore.py`): PyMOL command scripts excluded
-from PyExec; Biopython/Plotly installed; FileNotFoundError forgiven; QED regex fixed; QED in
-numerical fidelity; degeneration + code-attempted + PDB ID validity + PyMOL syntax + SMARTS
-validity metrics added (13 total).
+Scores: per-example pass/fail (examples where all instances correct / 100). Metrics degrade
+gracefully to `N/A` when a metric's trigger type never appears in a model's responses.
 
-| Metric | Round 1 | Round 2 | Round 3 ★ | Round 4 | Δ vs R3 |
-|---|---|---|---|---|---|
-| SMILES validity | 97% | 98% | 98% | **98%** | +0% |
-| Tool executability (RDKit) | 78% | 81% | **87%** | 74% | −13% |
-| Numerical fidelity | 65% | 62% | 57% | **61%** | +4% |
-| Rounding precision *(v3)* | 98% | 98% | 97% | **95%** | −2% |
-| Code→Quote fidelity *(v3)* | 57% | 52% | 50% | **59%** | +9% |
-| Refusal accuracy *(v3)* | 100% | 100% | 99% | **100%** | +1% |
-| QED range check *(v3)* | 100% | 100% | 100% | **100%** | +0% |
-| Python exec (extended) *(v3)* | 79% | 86% | **92%** | 75% | −17% |
-| Degeneration-free *(v3)* | 87% | 86% | 88% | **92%** | +4% |
-| Code Attempted *(v3)* | 65% | 70% | 75% | **80%** | +5% |
-| PDB ID Validity *(v4)* | 100% | 100% | 100% | **100%** | +0% |
-| PyMOL Syntax Check *(v4)* | 100% | 98% | 99% | **100%** | +1% |
-| SMARTS Validity *(v4)* | 86% | 100% | 100% | **100%** | +0% |
+| Metric | Round 1 | Round 2 | Round 3 | Round 4 | **Round 5** | Δ vs R4 |
+|---|---|---|---|---|---|---|
+| SMILES validity | 100% | 100% | 100% | 100% | **100%** | +0% |
+| SMARTS validity | N/A | 0% | 100% | 55% | **100%** | +45% |
+| Tool executability | 0% | 28% | 79% | 71% | **95%** | +24% |
+| Code attempted | 14% | 41% | 100% | 97% | **100%** | +3% |
+| Python exec (extended) | 36% | 34% | 78% | 69% | **99%** | +30% |
+| Code→Quote fidelity | N/A | 0% | 47% | 19% | **61%** | +42% |
+| Numerical fidelity | N/A | 18% | 57% | 47% | **89%** | +42% |
+| Rounding precision | 100% | 100% | 98% | 98% | **99%** | +1% |
+| Refusal accuracy | 98% | 98% | 97% | 98% | **100%** | +2% |
+| QED range | 100% | 100% | 100% | 100% | **100%** | +0% |
+| PDB ID validity | 100% | 100% | 100% | 100% | **100%** | +0% |
+| PyMOL syntax | 77% | 97% | 89% | 89% | **90%** | +1% |
+| Degeneration-free | 93% | 96% | 91% | 98% | **100%** | +2% |
+| **Overall** | **72%** | **63%** | **87%** | **80%** | **95%** | **+15%** |
 
-R4 wins on its trained targets: **Code→Quote +9%**, **Code Attempted +5%**, **Degeneration-free +4%**,
-**Refusal 100%**, **Fidelity +4%**, **PDB ID Validity 100%**, **PyMOL Syntax 100%**, **SMARTS 100%**.
+R5 wins on all exec/fidelity targets: **exec +24%**, **PyExec +30%**, **fidelity +42%**,
+**Code→Quote +42%**, **SMARTS +45%**, **Degeneration-free 100%**, **Refusal 100%**.
 
-The Exec and PyExec gaps vs R3 are genuine model errors — wrong RDKit API names for targeted
-single-property questions (QED, TPSA, fingerprint similarity) that are underrepresented as
-standalone question types in the training data. These are R5 training data targets.
+The R4 exec regression vs R3 (71% vs 79%) was caused by dataset distribution shift towards
+structural biology content that reduced the density of pure-RDKit drills. R5 corrected this
+with `pyexec_drill` (×6), `code_then_quote_v2` (×5), and `fidelity_multistep` (×5) generators.
 
 ## RAG corpus
 
@@ -258,8 +257,8 @@ The `data/corpus/` directory contains the full retrieval knowledge base: tool re
 **Per-example pass/fail scoring:**
 - Changed the eval metric methodology throughout `eval_compare.py` from per-instance accuracy (`ok / total_attempts`) to per-example pass/fail (`passed_examples / 100`). An example "passes" a metric if every instance in that response is correct (`ok == tot`, `tot > 0`). This makes round-over-round comparisons meaningful: R1 calling 2 SMILES correctly is no longer the same score as R3 calling 100 SMILES correctly. The `_per_example_agg()` helper re-derives this from `results[].scores` in `raw_results.json`.
 
-**5-round comparative eval (in progress, 2026-06-29):**
-- Running all 5 rounds on 100 shared R5 test examples (seed=42) via `eval/compare/eval_compare.py`. R1 and R2 complete; R3–R5 in progress. Full report in `eval/compare/results/` on completion. All README eval tables will be updated with final numbers.
+**5-round comparative eval (complete, 2026-06-29):**
+- All 5 rounds evaluated on 100 shared R5 test examples (seed=42). Full report: `eval/compare/results/compare_20260629_1928.html`. R5 overall 95% (vs R4 80%, R3 87%). R5 wins on exec (+24%), PyExec (+30%), fidelity (+42%), SMARTS (+45%). All README eval tables updated.
 
 ### Round 5: Higher rank + 2.5× corpus (2026-06-28, training in progress)
 
