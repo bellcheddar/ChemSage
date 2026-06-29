@@ -14,6 +14,12 @@ pyyaml
 pandas
 numpy
 
+# --- Chat CLI ---
+rich                       # console rendering (Markdown, panels, progress, themes)
+prompt_toolkit             # interactive input with history, arrow keys, and bottom toolbar
+tabulate                   # corpus table rendering (rounded_outline style)
+pyfiglet                   # ASCII art banner (optional — graceful fallback if missing)
+
 # --- RAG layer ---
 chromadb                   # or: lancedb
 sentence-transformers      # local embeddings (or use an Ollama nomic-embed-text endpoint)
@@ -24,6 +30,7 @@ unstructured               # optional, richer document parsing
 requests                   # OpenAI-compatible calls to mlx_lm.server
 scikit-learn               # similarity / metrics helpers
 tqdm
+psutil                     # process CPU / memory monitoring (eval/compare/eval_compare.py)
 
 # Note: the fine-tune lane is fixed to MLX-LM (Apple Silicon). The NVIDIA/Unsloth path is not
 # used in this project. GGUF/Ollama is only needed for the optional Route B in merge_export.py.

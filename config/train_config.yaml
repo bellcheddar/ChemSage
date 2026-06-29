@@ -35,10 +35,10 @@ adapter_path: "adapters/chem_sage_32b_v3_lora"
 
 # --- LoRA / RSLoRA ---
 # Expert: rank=32, scale=64, use_rslora=true → effective alpha = 64/√32 ≈ 11.3
-# All 7 projection matrices adapted across all 64 transformer layers.
-# 64 layers previously caused swap thrashing — resolved by clearing orphaned
-# processes and capping MLX cache (see scripts/preflight.sh and scripts/train_launch.py).
-num_layers: 64
+# All 7 projection matrices adapted across the top 32 transformer layers.
+# 64 layers: no swap with cache cap, but compute-bound at ~2.5 min/iter on M1 Max.
+# 48 layers: also ~2 min/iter — still too slow. 32 layers is the M1 Max sweet spot at ~25 sec/iter.
+num_layers: 32
 lora_parameters:
   keys:
     - "self_attn.q_proj"

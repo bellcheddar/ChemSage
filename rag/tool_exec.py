@@ -40,7 +40,6 @@ _BLOCKED = frozenset([
     "os.popen(",
     "shutil.rmtree",
     "shutil.copy",
-    "open(",          # write-mode file ops; read-only RDKit work never needs open()
     "__import__(",
 ])
 

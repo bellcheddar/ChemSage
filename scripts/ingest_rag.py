@@ -163,7 +163,10 @@ def main():
     print(f"Loading embedder: {args.embed_model}")
     embedder = SentenceTransformer(args.embed_model)
 
-    client = chromadb.PersistentClient(path=str(args.store))
+    client = chromadb.PersistentClient(
+        path=str(args.store),
+        settings=chromadb.Settings(allow_reset=True, anonymized_telemetry=False),
+    )
     if args.reset:
         try:
             client.delete_collection(args.collection)

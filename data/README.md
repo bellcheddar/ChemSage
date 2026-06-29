@@ -6,10 +6,14 @@ MLX-LM expects a data directory containing `train.jsonl` and `valid.jsonl` (note
 ```
 data/
 ├── corpus/          # RAG sources: PDFs, SAR CSVs, dossiers, notes (gitignored)
-└── sft/             # supervised fine-tuning data (this is the MLX --data directory)
-    ├── train.jsonl
-    ├── valid.jsonl  # ~10% held out (MLX reads this during training)
-    └── test.jsonl   # frozen, eval only
+├── sft/             # Rounds 1-4 SFT data (MLX --data directory for R1-R4)
+│   ├── train.jsonl  # 6,400 examples (Round 4)
+│   ├── valid.jsonl  # 800 examples
+│   └── test.jsonl   # 800 examples, frozen, eval only
+└── sft_r5/          # Round 5 SFT data (MLX --data directory for R5)
+    ├── train.jsonl  # 16,000 examples
+    ├── valid.jsonl  # 2,000 examples
+    └── test.jsonl   # 2,000 examples, frozen, eval only
 ```
 
 ## SFT format
@@ -52,11 +56,14 @@ asserting a number from memory.
 
 ## Dataset versions
 
-| Version | Round | Examples | Classes | Command |
-|---|---|---|---|---|
-| v1 | Rounds 1-2 | 1,500 (1,200 train) | 8 | `build_dataset.py --n 1500` |
-| v2 | Round 3 | 5,000 (4,000 train) | 19 | `build_dataset.py --n 5000 --seed 43` |
-| v3 | Round 4 | 8,000 (6,400 train) | 67 | `build_dataset.py --n 8000 --seed 51` |
+| Version | Round | Examples | Classes | Command | Data dir |
+|---|---|---|---|---|---|
+| v1 | Rounds 1-2 | 1,500 (1,200 train) | 8 | `build_dataset.py --n 1500` | `data/sft/` |
+| v2 | Round 3 | 5,000 (4,000 train) | 19 | `build_dataset.py --n 5000 --seed 43` | `data/sft/` |
+| v3 | Round 4 | 8,000 (6,400 train) | 59 | `build_dataset.py --n 8000 --seed 51` | `data/sft/` |
+| v4 | Round 5 | 20,000 (16,000 train) | **78** | `build_dataset.py --n 20000 --seed 51` | `data/sft_r5/` |
+
+v4 stats: 707 rejected (96.5% pass rate); token lengths p50=322, p90=421, p95=451, p99=488, max=558 (all under max_seq_length=3072); class balance max:median < 3:1 (no capping needed).
 
 ### v2 behaviour classes (Round 3)
 
@@ -100,3 +107,19 @@ v3 adds 32 new generators (51 total) across structural biology, visualization, p
 **RAFT (fidelity fix):** `raft_single` (3x) — real RDKit stdout in user turn, assistant quotes from it; `raft_druglike` (3x) — druglikeness with real output; `raft_distractor` (2x) — correct value vs wrong database value
 
 **Robustness:** `refusal` (2x) — out-of-scope and invalid query handling
+
+### v4 additions (Round 5)
+
+v4 adds 19 new generators (78 classes total, up from 59) targeting the R4 exec/PyExec gap and numerical fidelity:
+
+**Fidelity drills:** `pyexec_drill` (×6) — execute code, reject if it doesn't run; `code_then_quote_v2` (×5) — explicit compute→quote pattern with prose-verification step; `rounding_explicit` (×5) — ✅/❌ rounding drill for MW/logP/TPSA/QED; `fidelity_multistep` (×5) — 7 properties computed and quoted verbatim from output
+
+**Medchem/ADMET:** `herg_liability` (×3) — hERG cardiac liability (MW, logP, nitrogen count, ΔΔlogP heuristic); `selectivity_profile` (×3) — on-target vs off-target selectivity narrative; `prodrug_bcs` (×3) — prodrug strategy with BCS biopharmaceutics classification; `sar_delta` (×3) — paired A/B comparison of property changes
+
+**Computational chemistry:** `conformer_3d` (×3) — ETKDG 3D conformer generation with RMSD; `mcs_search` (×3) — maximum common substructure via rdFMCS; `reaction_smarts` (×3) — reaction SMARTS transformation and product generation; `recap_fragmentation` (×3) — RECAP retrosynthetic fragmentation
+
+**Structural biology (extended):** `mdanalysis` (×3) — MDAnalysis trajectory RMSD/RMSF patterns; `dssp` (×3) — DSSP secondary structure assignment (BioPython); `ppi_interface` (×3) — protein-protein interface residue analysis; `uniprot_api` (×3) — UniProt REST API feature retrieval; `electron_density` (×3) — electron density map interpretation from CCP4/PDB; `biological_assembly` (×3) — biological assembly vs asymmetric unit
+
+**Drug-target knowledge:** `drug_target_family` (×4) — family-level drug-target analysis (kinase tree, GPCR classes, nuclear receptors, ion channels) with real ChEMBL data
+
+v4 uses the same 51 seed SMILES + corpus drugs as v3. Data directory: `data/sft_r5/` (separate from v3's `data/sft/`).

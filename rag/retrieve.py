@@ -27,7 +27,10 @@ class Retriever:
         embed_model: str = EMBED_MODEL,
     ):
         self._embedder   = SentenceTransformer(embed_model)
-        client           = chromadb.PersistentClient(path=store)
+        client           = chromadb.PersistentClient(
+            path=store,
+            settings=chromadb.Settings(allow_reset=True, anonymized_telemetry=False),
+        )
         self._collection = client.get_collection(collection)
 
     def retrieve(self, query: str, n: int = 5) -> list[dict]:

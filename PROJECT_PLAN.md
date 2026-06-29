@@ -6,7 +6,7 @@ medicinal chemist actually uses (RDKit, PyMOL, docking, PLIP), and grounds every
 in the user's own corpus (papers, assay tables, target dossiers, SAR series).
 
 **Author:** Marc C. Deller, D.Phil. ([marcdeller.com](https://marcdeller.com))
-**Status:** Round 3 complete (v3) — 32B model, val loss 0.054, eval: SMILES 99%, Exec 99%, Fidelity 68%. Round 4 dataset ready (67 classes, 8,000 examples).
+**Status:** Round 5 complete (early stop 2026-06-29 at iter 2000) — best val 0.055 at iter 1600, fused to `models/chem_sage_32b_v5/`. R4 best val **0.041** at iter 950 (24% over R3), fused to `models/chem_sage_32b_v4/`. Eval harness at v4 (13 metrics). Report: `eval/compare/results/compare_20260627_1753.html`. Next: run eval on all 5 rounds.
 **Fine-tune stack:** MLX-LM on Apple Silicon (committed; see section 3).
 **Hand-off:** this document is the build brief for Claude Code. Phases are ordered so each one
 is independently testable and delivers value before the next begins.
@@ -141,6 +141,7 @@ Build retrieval before any training. It delivers most of the value immediately a
    - Embeddings: a local sentence-transformer (e.g. `BAAI/bge-base-en-v1.5`).
    - Store: **Chroma** or **LanceDB** (both are what AnythingLLM/Open WebUI use under the hood, so
      you can let the GUI own this, or run your own pipeline for control).
+   - **ChromaDB 1.x note:** `PersistentClient` requires `Settings(allow_reset=True, anonymized_telemetry=False)` on chromadb 1.0+. The Rust backend times out on the old Python-backend database format without these flags. Already applied in `rag/retrieve.py` and `scripts/ingest_rag.py`.
    - Chemistry note: when chunking SAR tables, keep each compound row intact and prepend the
      assay/target header to every chunk so retrieval stays coherent.
 3. **Wire to GUI:** create an AnythingLLM/Open WebUI workspace, attach the corpus, and for now set
@@ -202,16 +203,17 @@ mlx_lm.lora --config config/train_config.yaml --train
 
 Key settings live in `config/train_config.yaml` (a native MLX config):
 
-| Setting | Round 1 (7B) | Round 3 (32B, current) | Note |
-|---|---|---|---|
-| `model` | `Qwen2.5-7B-Instruct-4bit` | `Qwen2.5-32B-Instruct-4bit` | 4-bit base = QLoRA automatically |
-| `fine_tune_type` | `lora` | `lora` | with RSLoRA (`use_rslora: true`) |
-| `num_layers` | 16 | 32 | 64 caused swap thrashing on 64 GB |
-| `lora_parameters.rank` | 32 | 32 | with scale 64.0 (RSLoRA effective 11.3x) |
-| `iters` | 750 | 1,500 | R3 stopped early at 625 (val plateau) |
-| `learning_rate` | 2e-5 | 2e-5 | |
-| `batch_size` | 4 | 4 | 8 was too slow due to memory pressure |
-| `max_seq_length` | 2048 | 2048 | |
+| Setting | Round 1 (7B) | Round 3 (32B) | Round 4 (32B) | Round 5 (32B, in progress) | Note |
+|---|---|---|---|---|---|
+| `model` | `Qwen2.5-7B-Instruct-4bit` | `Qwen2.5-32B-Instruct-4bit` | `Qwen2.5-32B-Instruct-4bit` | `Qwen2.5-32B-Instruct-4bit` | 4-bit base = QLoRA automatically |
+| `fine_tune_type` | `lora` | `lora` | `lora` | `lora` | with RSLoRA (`use_rslora: true`) |
+| `num_layers` | 16 | 32 | 32 | 32 | 48/64 layers too slow (~2 min/iter); 32 is the M1 Max sweet spot |
+| `lora_parameters.rank` | 32 | 32 | 32 | **64** | R5 scale 90.0, effective alpha ≈ 11.25 (same order as R4's 11.31) |
+| `iters` | 750 | 1,500 | 1,500 | **3,000** | R3 stopped at 625; R4 ran to completion; R5 target 3,000 |
+| `learning_rate` | 2e-5 | 2e-5 | 2e-5 | 2e-5 | cosine decay |
+| `batch_size` | 4 | 4 | 4 | 4 | 8 was too slow due to memory pressure |
+| `max_seq_length` | 2048 | 2048 | 2048 | **3072** | R5 extended for longer examples |
+| `steps_per_report` | 10 | 10 | 25 | **50** | aligned with `steps_per_eval`; `val_batches: 50` |
 
 Before the first run, reconcile field names against your installed mlx-lm version's example
 (`mlx_lm/examples/lora_config.yaml`): key names have shifted across versions (e.g. `lora_layers`
@@ -258,19 +260,45 @@ and an executed RDKit/PLIP call, returning a grounded, numerically correct answe
 
 ### Phase 7 — Chemistry-specific evaluation (1 day, then ongoing)
 
-Generic LLM evals miss what matters here. Build a chemistry harness (`eval/eval_chem.py`, which
-calls the OpenAI-compatible `mlx_lm.server` endpoint):
+Generic LLM evals miss what matters here. Three evaluation scripts cover different needs:
 
-- **SMILES validity rate:** every SMILES the model emits must parse and canonicalise in RDKit.
-  This is a free, automatic, brutal grader. Target ~100%.
-- **Tool-call executability:** every emitted RDKit/PyMOL block must run without error.
-- **Numerical fidelity:** where the model states a property, recompute with RDKit and check it
-  matches (it should, if it called the tool rather than guessing).
-- **Retrieval faithfulness:** answers grounded in corpus claims, not invented.
-- **Side-by-side vs base** on the frozen `test.jsonl` set, scored qualitatively for medchem reasoning.
+**`eval/eval_chem.py`** — per-round scorecard (13 metrics, HTML output):
+- **SMILES validity rate:** every SMILES the model emits must parse in RDKit. Target ~100%.
+- **Tool executability:** every emitted RDKit block must run without error.
+- **Numerical fidelity:** stated property values (MW, logP, HBD, HBA, TPSA, QED) must match RDKit recompute.
+- **Rounding precision:** MW 1 d.p., logP 2 d.p., TPSA 1 d.p., QED 2 d.p. *(new)*
+- **Code-then-quote:** prose values must match what the code block actually printed to stdout *(new)*
+- **Refusal accuracy:** out-of-scope queries correctly declined *(new)*
+- **QED range:** stated QED values in [0, 1]; fixed regex covers "QED score: 0.33", "QED is 0.45" *(new)*
+- **Extended executability:** all Python blocks (RDKit + Plotly + Biopython) *(new)*
+- **Degeneration-free:** flags repetition collapse (any 3-token trigram repeated >5×) *(new)*
+- **Code Attempted:** targeted compute questions (QED, TPSA, Tanimoto…) must receive code, not prose *(new)*
 
-**Exit test:** harness runs on every model build and emits a one-page scorecard (an HTML dashboard
-is a natural fit for your vibe-coding stack: validity %, executability %, win-rate vs base).
+New metrics degrade gracefully to `n/a` on older datasets — no breaking changes.
+
+**`eval/eval_chem_original.py`** — frozen copy of the original 3-metric harness. Use this to
+re-run R1-R3 scorecards with the identical formula used at training time.
+
+**`eval/compare/eval_compare.py`** — multi-round side-by-side comparison (all 13 metrics):
+- Spawns and manages `mlx_lm.server` per model automatically (no manual terminal juggling)
+- 100 shared examples sampled from the R4 test set (fixed seed, reproducible)
+- R3 as baseline with Δ column; colour-coded HTML + Markdown output
+- SVG val loss curves for all 4 rounds; comprehensive model profile panel
+- Server CPU/memory stats via `psutil`; per-example collapsible response viewer
+- `--resume` flag loads cached `raw_results.json` to skip re-running completed models
+
+```bash
+# Single-model scorecard
+python eval/eval_chem.py --base-url http://localhost:8080/v1 --model models/chem_sage_32b_v3
+
+# Comparative (run after R4 fuse; manages servers automatically)
+python eval/compare/eval_compare.py
+python eval/compare/eval_compare.py --models round3 round4 --resume
+python eval/compare/eval_compare.py --limit 10  # smoke-test
+```
+
+**Exit test:** `eval_compare.py` runs all 4 models and emits `eval/compare/results/compare_<ts>.html`
+with a metric table, loss curves, and model profiles side-by-side.
 
 ### Phase 8 — Iterate (ongoing)
 
@@ -303,7 +331,13 @@ chem_sage/
 ├── rag/
 │   └── tool_exec.py         # sandboxed RDKit/PyMOL execution shim
 └── eval/
-    └── eval_chem.py         # chemistry-aware evaluation harness
+    ├── eval_chem.py         # chemistry-aware evaluation harness (13 metrics, v4)
+    ├── eval_chem_original.py # frozen original 3-metric harness for R1-R3 re-runs
+    ├── scorecards/          # per-round HTML scorecards (scorecard_r1..r4.html)
+    └── compare/
+        ├── models.yaml      # model registry with all metadata and loss curves
+        ├── eval_compare.py  # multi-round comparative eval (auto-server, 13 metrics, HTML+MD)
+        └── results/         # compare_<timestamp>.html + .md + raw_results.json
 ```
 
 ---

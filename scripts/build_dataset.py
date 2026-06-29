@@ -27,8 +27,35 @@ try:
         Descriptors, Lipinski, rdMolDescriptors, AllChem, rdFingerprintGenerator
     )
     from rdkit.Chem.Scaffolds import MurckoScaffold
+    from rdkit.Chem.QED import qed as _qed
+    from rdkit.Chem.MolStandardize import rdMolStandardize as _rdMolStd
+    from rdkit.Chem import inchi as _rdkitInchi
+    from rdkit.Chem import FilterCatalog as _FilterCatalog
+    from rdkit.Chem import rdFMCS as _rdFMCS
+    from rdkit.Chem.Recap import RecapDecompose as _RecapDecompose
+    from rdkit.Chem.BRICS import BRICSDecompose as _BRICSDecompose
+    from rdkit.Chem import rdChemReactions as _rdChemReactions
 except ImportError:
     raise SystemExit("RDKit is required: pip install rdkit")
+
+# SA score from RDKit contrib
+import os as _os
+from rdkit.Chem import RDConfig as _RDConfig
+sys.path.append(_os.path.join(_RDConfig.RDContribDir, "SA_Score"))
+try:
+    import sascorer as _sascorer
+    _HAS_SASCORER = True
+except ImportError:
+    _HAS_SASCORER = False
+
+# Build PAINS + Brenk filter catalog once at import time
+def _build_filter_catalog():
+    params = _FilterCatalog.FilterCatalogParams()
+    params.AddCatalog(_FilterCatalog.FilterCatalogParams.FilterCatalogs.PAINS)
+    params.AddCatalog(_FilterCatalog.FilterCatalogParams.FilterCatalogs.BRENK)
+    return _FilterCatalog.FilterCatalog(params)
+
+_FILTER_CATALOG = _build_filter_catalog()
 
 SYSTEM = (
     "You are ChemSage, a chemically literate research assistant for drug discovery. "
@@ -51,7 +78,7 @@ SEED_SMILES = [
     "c1ccc(cc1)C(=O)O",                                  # benzoic acid
     "OC(Cc1ccccc1)C(=O)O",                              # phenyllactic acid
     "OC(=O)c1ccc(Cl)cc1",                               # 4-chlorobenzoic acid
-    "CC(=O)Nc1ccc(Cl)cc1",                              # chloroacetanilide
+    "CC(=O)Nc1ccc(Cl)cc1",                              # 4-chloroacetanilide
     "CCOc1ccc(NC(=O)c2cc(C(F)(F)F)ccc2Cl)cc1",         # sorafenib-like
     "c1ccc(Nc2ncnc3ccsc23)cc1",                         # erlotinib-like core
     "CC1=CC(=O)c2ccccc2C1=O",                           # menadione
@@ -89,6 +116,86 @@ SEED_SMILES = [
     "OC(=O)CCc1ccccc1",                                  # hydrocinnamic acid
     "Oc1ccc(Cl)cc1",                                     # 4-chlorophenol
     "CC(O)c1ccccc1",                                     # 1-phenylethanol
+    # Round 5: broader scaffold diversity
+    "CN(C)CCCN1c2ccccc2CCc2ccccc21",                    # imipramine
+    "OC(=O)c1ccc(Nc2ncc3cc(Cl)ccc3n2)cc1",             # erlotinib analogue
+    "CC(C)(C)c1cc(CN2CCN(Cc3cccc(C(F)(F)F)c3)CC2)cc(C(C)(C)C)c1O",  # tetrahydropyrimidine
+    "Clc1ccc(C2=NCC(=O)Nc3ccccc23)cc1",                # oxazepam scaffold
+    "COCCOC1CN(C(=O)c2cc3cc(F)ccc3[nH]2)CC1",         # fluoroindole amide
+    "CC1=C(C(=O)Nc2ccc(F)cc2F)C(c2ccc(Cl)cc2)NC(=O)N1",  # urea compound
+    "O=C(c1ccc(F)cc1)c1ccc(NC2=NC(=O)CS2)cc1",        # thiazolinone
+    "CC(=O)Nc1ccc2c(c1)C(C)(C)CC2=O",                 # naphthalenone acetamide
+    "CN1CCN(c2nc(-c3ccccc3)c3ccccc3n2)CC1",           # quinoxaline piperazine
+    "Fc1ccc(-c2cn(-c3ccccc3)nn2)cc1",                  # triazole fluorobenzene
+    "O=C(O)c1ccc(NC(=O)c2ccc(Cl)s2)cc1",              # thiophene sulfonamide
+    "CC(C)c1nc(N2CCOCC2)nc2ccccc12",                   # morpholine quinazoline
+    "Nc1nc(Cl)nc2nccc12",                               # adenine analogue (Cl)
+    "CC1(C)CCC(=C2CCCCC2)CC1",                         # bicyclic olefin
+    "O=S(=O)(Nc1ccc(Br)cc1)c1ccccc1",                 # bromophenyl sulfonamide
+    "O=C(O)c1cccc(NC(=O)Nc2ccc(Cl)cc2)c1",            # urea benzoic acid
+    "CCOC(=O)c1ccc(NC(=O)c2ccccc2Cl)cc1",             # ester benzamide
+    "CN(Cc1ccc(F)cc1)S(=O)(=O)c1ccc(C)cc1",           # N-methyl sulfonamide
+    "O=C(O)CCc1ccc(Br)cc1",                             # bromophenylpropionic acid
+    "CCc1cc(C)c(C)cc1NC(=O)c1ccc(Cl)cc1",             # alkylbenzamide
+    "c1ccc(-c2nnco2)cc1",                               # phenyl oxadiazole
+    "CC(=O)Nc1ccc(-c2nc3ccccc3s2)cc1",                # benzothiazole acetamide
+    "O=C(Nc1ccc(Cl)cc1)c1cccs1",                       # thiophene amide
+    "C(#N)c1ccc(C(=O)Nc2cccc(F)c2)cc1",               # cyano fluorobenzamide
+    "CC(=O)c1ccc(NC(=O)c2ccc(F)cc2)cc1",              # fluorobenzamide
+    "O=C(O)c1ccc(F)cc1NC(=O)c1ccncc1",                # pyridine fluorobenzoic acid
+    "CCc1ccc(C(=O)Nc2ccccc2F)cc1",                     # fluoroaniline ethylbenzamide
+    "O=C(Nc1cccc(Cl)c1)c1ccc(F)cc1",                  # fluorobenzamide chloroaniline
+    "Cn1cc(-c2ccc(Cl)cc2)nn1",                          # chlorophenyl methyltriazole
+    "CC1=NN(c2ccc(Cl)cc2)C(=O)C1",                    # pyrazolone chloro
+    "CC(=O)Nc1ccc(OCC(=O)O)cc1",                      # phenoxy acetic acid acetamide
+    "Brc1ccc(NC(=O)Cc2cccs2)cc1",                      # thienyl bromoanilide
+    "O=C(Nc1cccc(C(F)(F)F)c1)c1ccc(Cl)cc1",          # trifluoromethyl amide
+    "CCN(CC)C(=O)c1cccc(NC(=O)c2ccc(F)cc2)c1",       # fluorobenzamide diethylamine
+    "O=C(O)c1ccc(F)cc1",                                # fluorobenzoic acid
+    "Cc1ccc(C(=O)Nc2ccccc2OC)cc1",                    # methoxybenzamide
+    "O=c1[nH]c2ccccc2n1-c1ccccc1",                    # benzimidazolone
+    "Cc1nn(C)cc1C(=O)Nc1ccc(F)cc1",                   # methylpyrazole amide
+    "CCOC(=O)c1cc2ccccc2[nH]1",                        # ethyl indole-2-carboxylate
+    "O=C(Nc1ccccc1)c1ccncc1",                           # isonicotinamide
+    # Macrolide / lactone scaffolds
+    "O=C1CCCCCCCCO1",                                   # oxacyclodecan-2-one (macrolactone)
+    "CC1OC(=O)C(C)C(=O)CCCC(C)CC1=O",                  # simplified macrolide
+    # Natural product-like
+    "OC(/C=C/c1ccc(O)cc1)c1ccc(O)cc1",                 # resveratrol analogue
+    "COc1ccc([C@@H]2OCC3=CC(=O)c4c(OC)cccc4[C@@H]23)cc1",  # dehydropodophyllotoxin-like
+    "O=C1OC[C@@H]2Cc3c(O)cc(O)cc3[C@H]12",             # flavanone scaffold
+    "O=c1cc(-c2ccc(O)cc2)oc2cc(O)cc(O)c12",            # apigenin-like
+    # PROTAC-like / bivalent
+    "O=C(CCCOCCOCCO)Nc1ccc(NC(=O)c2ccccc2)cc1",        # PEG linker bivalent
+    "O=C(CCC(=O)Nc1ccc(F)cc1)Nc1cccc(F)c1",            # glutaramide bis-aniline
+    # Kinase inhibitors (EGFR/VEGFR-like)
+    "Nc1ccc(NC(=O)c2ccc(Cl)c(NC3=NCCN3)c2)cc1",        # EGFR-type anilinopyrimidine
+    "CC(C)(C)c1cc(NC(=O)Nc2ccc(OC3CCNCC3)cc2)no1",     # isoxazole urea
+    "Cc1ccc(-c2nn(C)cc2C(N)=O)cc1NC(=O)c1ccc(F)cc1",   # pyrazole amide kinase
+    # Fragment-sized (MW 150–250)
+    "c1ccc2[nH]ccc2c1",                                  # indole
+    "c1cnc2[nH]ccc2c1",                                 # 7-azaindole
+    "O=c1[nH]c2ccccc2n1C",                              # 1-methylbenzimidazolinone
+    "Cc1ccc(CN2CCOCC2)cc1",                             # 4-methylbenzyl morpholine
+    "OC(c1ccncc1)c1ccncc1",                             # di(4-pyridyl)carbinol
+    "N#Cc1ccc(NC(=O)c2cccs2)cc1",                       # thienyl nitrile amide
+    # Peptide mimetics / beta-lactam
+    "O=C1CN(Cc2ccccc2)C1=O",                            # 1-benzylazetidine-2,3-dione
+    "O=C1CCN1Cc1ccccc1",                                 # N-benzyl-beta-lactam
+    "CC(NC(=O)OC(C)(C)C)C(=O)NC1CCCCC1",               # Boc-Ala-cyclohexylamide
+    # Heterocycle diversity
+    "c1cc2cccc3cccc1c23",                                # pyrene
+    "n1ccnc2ccccc12",                                    # benzimidazole
+    "O=c1cccc[nH]1",                                     # 2-pyridinone
+    "Cc1cc(=O)oc2ccccc12",                               # 4-methylcoumarin
+    "c1cnc2ccccn12",                                     # 1,5-naphthyridine
+    "O=c1ccc2ccccc2[nH]1",                               # 2-quinolinone
+    # High HBD (for HBD tests)
+    "OCC(O)C(O)C(O)CO",                                  # xylitol
+    "NC(CO)(CO)CO",                                      # tris(hydroxymethyl)aminomethane
+    # Charged / zwitterionic
+    "OC(=O)c1ccc(S(=O)(=O)[O-])cc1",                    # sulfosalicylic acid anion
+    "CC(=[NH2+])NCCC[C@@H](N)C(=O)[O-]",               # arginine zwitterion-like
 ]
 
 INVALID_SMILES = [
@@ -607,30 +714,42 @@ def qed_example(smiles: str):
     if mol is None:
         return None
     try:
-        from rdkit.Chem.QED import qed
-        score = round(qed(mol), 3)
+        score = round(_qed(mol), 3)
     except Exception:
         return None
     interp = (
         "highly drug-like (QED > 0.67)" if score > 0.67 else
-        "moderately drug-like (0.33 < QED < 0.67)" if score > 0.33 else
-        "poorly drug-like (QED < 0.33)"
+        "moderately drug-like (0.33 < QED ≤ 0.67)" if score > 0.33 else
+        "poorly drug-like (QED ≤ 0.33)"
     )
+    # Alternate import style so model sees both forms
+    import_style = random.choice([
+        "from rdkit.Chem.QED import qed\n"
+        f"mol = Chem.MolFromSmiles('{smiles}')\n"
+        "print(round(qed(mol), 3))\n",
+        "from rdkit.Chem import QED\n"
+        f"mol = Chem.MolFromSmiles('{smiles}')\n"
+        "print(round(QED.qed(mol), 3))\n",
+    ])
     answer = (
         "```python\n"
         "from rdkit import Chem\n"
-        "from rdkit.Chem.QED import qed\n"
-        f"mol = Chem.MolFromSmiles('{smiles}')\n"
-        "print(round(qed(mol), 3))\n"
+        f"{import_style}"
         "```\n\n"
         f"QED = {score}. The compound is {interp}. "
         "QED (Quantitative Estimate of Drug-likeness) integrates MW, logP, HBD, HBA, PSA, "
-        "rotatable bonds, aromatic rings, and alerts into a single 0-1 score."
+        "rotatable bonds, aromatic rings, and structural alerts into a single 0–1 score."
     )
-    return _record(
+    questions = [
         f"What is the QED score of {smiles}?",
-        answer,
-    )
+        f"Calculate the QED drug-likeness score for {smiles}.",
+        f"Compute the QED of {smiles} using RDKit.",
+        f"What is the quantitative estimate of drug-likeness for {smiles}?",
+        f"How drug-like is {smiles}? Compute the QED score.",
+        f"Give me the QED score for this molecule: {smiles}",
+        f"Use RDKit to compute the QED drug-likeness of {smiles}.",
+    ]
+    return _record(random.choice(questions), answer)
 
 
 # ---------------------------------------------------------------------------
@@ -2414,6 +2533,2806 @@ def raft_with_distractor_example(smiles: str):
 
 
 # ---------------------------------------------------------------------------
+# R5 NEW: Standalone TPSA — long-form and acronym phrasings
+# ---------------------------------------------------------------------------
+
+def tpsa_example(smiles: str):
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return None
+    tpsa = round(rdMolDescriptors.CalcTPSA(mol), 1)
+    veber = "meets" if tpsa <= 140 else "exceeds"
+    answer = (
+        "```python\n"
+        "from rdkit import Chem\n"
+        "from rdkit.Chem import rdMolDescriptors\n"
+        f"mol = Chem.MolFromSmiles('{smiles}')\n"
+        "print(round(rdMolDescriptors.CalcTPSA(mol), 1))\n"
+        "```\n\n"
+        f"TPSA = {tpsa} Å². "
+        f"This compound {veber} the Veber oral absorption threshold (TPSA ≤ 140 Å²). "
+        "TPSA is the sum of surface contributions of polar atoms (N, O, S and attached H)."
+    )
+    questions = [
+        f"What is the TPSA of {smiles}?",
+        f"Calculate the TPSA for {smiles}.",
+        f"Compute the topological polar surface area of {smiles}.",
+        f"What is the topological polar surface area of {smiles}?",
+        f"Use RDKit to calculate the topological polar surface area for {smiles}.",
+        f"What is the polar surface area of {smiles}?",
+        f"Compute the TPSA of {smiles} using RDKit.",
+        f"Calculate the polar surface area (TPSA) of {smiles}.",
+    ]
+    return _record(random.choice(questions), answer)
+
+
+# ---------------------------------------------------------------------------
+# R5 NEW: Standalone scaffold equality (explicit Boolean, not Tanimoto)
+# ---------------------------------------------------------------------------
+
+def scaffold_equality_example(smi_a: str, smi_b: str):
+    mol_a = Chem.MolFromSmiles(smi_a)
+    mol_b = Chem.MolFromSmiles(smi_b)
+    if mol_a is None or mol_b is None:
+        return None
+    try:
+        scaf_a = Chem.MolToSmiles(MurckoScaffold.GetScaffoldForMol(mol_a))
+        scaf_b = Chem.MolToSmiles(MurckoScaffold.GetScaffoldForMol(mol_b))
+    except Exception:
+        return None
+    if not scaf_a or not scaf_b:
+        return None
+    same = (scaf_a == scaf_b)
+    answer = (
+        "I will compare Murcko scaffolds to determine scaffold identity.\n\n"
+        "```python\n"
+        "from rdkit import Chem\n"
+        "from rdkit.Chem.Scaffolds import MurckoScaffold\n"
+        f"mol_a = Chem.MolFromSmiles('{smi_a}')\n"
+        f"mol_b = Chem.MolFromSmiles('{smi_b}')\n"
+        "scaf_a = Chem.MolToSmiles(MurckoScaffold.GetScaffoldForMol(mol_a))\n"
+        "scaf_b = Chem.MolToSmiles(MurckoScaffold.GetScaffoldForMol(mol_b))\n"
+        "print('A:', scaf_a)\n"
+        "print('B:', scaf_b)\n"
+        "print('Same scaffold:', scaf_a == scaf_b)\n"
+        "```\n\n"
+        f"Scaffold A: `{scaf_a}`  \n"
+        f"Scaffold B: `{scaf_b}`  \n\n"
+        + ("**Same scaffold: Yes.** Both compounds share the same Murcko core. "
+           "Differences lie in peripheral substituents only."
+           if same else
+           "**Same scaffold: No.** The compounds have distinct Murcko scaffolds, "
+           "indicating they belong to different structural series.")
+    )
+    questions = [
+        f"Do these two compounds share the same scaffold?\nA: {smi_a}\nB: {smi_b}",
+        f"Are these compounds in the same scaffold class?\nA: {smi_a}\nB: {smi_b}",
+        f"Do A and B share the same Murcko scaffold?\nA: {smi_a}\nB: {smi_b}",
+        f"Check if these two molecules have the same core scaffold:\nA: {smi_a}\nB: {smi_b}",
+        f"Are {smi_a} and {smi_b} matched molecular pairs on the same scaffold?",
+    ]
+    return _record(random.choice(questions), answer)
+
+
+# ---------------------------------------------------------------------------
+# R5 NEW: Standalone HBD / HBA / RotBonds (targeted single-property)
+# ---------------------------------------------------------------------------
+
+_HBX_TEMPLATES = [
+    {
+        "prop": "hydrogen bond donors",
+        "code": "Lipinski.NumHDonors(mol)",
+        "imports": "from rdkit import Chem\nfrom rdkit.Chem import Lipinski",
+        "compute": lambda m: Lipinski.NumHDonors(m),
+        "limit": "≤ 5 (Lipinski)",
+        "questions": [
+            "How many hydrogen bond donors does {s} have?",
+            "Calculate the number of HBD for {s}.",
+            "What is the HBD count of {s}?",
+            "Compute the number of H-bond donors in {s} using RDKit.",
+        ],
+    },
+    {
+        "prop": "hydrogen bond acceptors",
+        "code": "Lipinski.NumHAcceptors(mol)",
+        "imports": "from rdkit import Chem\nfrom rdkit.Chem import Lipinski",
+        "compute": lambda m: Lipinski.NumHAcceptors(m),
+        "limit": "≤ 10 (Lipinski)",
+        "questions": [
+            "How many hydrogen bond acceptors does {s} have?",
+            "Calculate the HBA count for {s}.",
+            "What is the number of H-bond acceptors in {s}?",
+            "Compute the number of hydrogen bond acceptors of {s} using RDKit.",
+        ],
+    },
+    {
+        "prop": "rotatable bonds",
+        "code": "rdMolDescriptors.CalcNumRotatableBonds(mol)",
+        "imports": "from rdkit import Chem\nfrom rdkit.Chem import rdMolDescriptors",
+        "compute": lambda m: rdMolDescriptors.CalcNumRotatableBonds(m),
+        "limit": "≤ 10 (Veber)",
+        "questions": [
+            "How many rotatable bonds does {s} have?",
+            "Calculate the number of rotatable bonds in {s}.",
+            "What is the rotatable bond count of {s}?",
+            "Compute rotatable bonds for {s} using RDKit.",
+        ],
+    },
+    {
+        "prop": "aromatic rings",
+        "code": "rdMolDescriptors.CalcNumAromaticRings(mol)",
+        "imports": "from rdkit import Chem\nfrom rdkit.Chem import rdMolDescriptors",
+        "compute": lambda m: rdMolDescriptors.CalcNumAromaticRings(m),
+        "limit": None,
+        "questions": [
+            "How many aromatic rings are in {s}?",
+            "Count the aromatic rings in {s}.",
+            "What is the aromatic ring count of {s}?",
+            "Compute the number of aromatic rings in {s} using RDKit.",
+        ],
+    },
+]
+
+
+def hbd_hba_example(smiles: str):
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return None
+    tmpl = random.choice(_HBX_TEMPLATES)
+    value = tmpl["compute"](mol)
+    limit_note = f" Lipinski/Veber threshold: {tmpl['limit']}." if tmpl["limit"] else ""
+    answer = (
+        f"```python\n"
+        f"{tmpl['imports']}\n"
+        f"mol = Chem.MolFromSmiles('{smiles}')\n"
+        f"print({tmpl['code']})\n"
+        "```\n\n"
+        f"Number of {tmpl['prop']}: **{value}**.{limit_note}"
+    )
+    q_template = random.choice(tmpl["questions"])
+    return _record(q_template.format(s=smiles), answer)
+
+
+# ---------------------------------------------------------------------------
+# R5 NEW: Largest fragment / salt stripping
+# ---------------------------------------------------------------------------
+
+def salt_strip_example(smiles: str):
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return None
+    try:
+        chooser = _rdMolStd.LargestFragmentChooser()
+        parent = chooser.choose(mol)
+        parent_smi = Chem.MolToSmiles(parent)
+        orig_smi = Chem.MolToSmiles(mol)
+    except Exception:
+        return None
+    changed = (parent_smi != orig_smi)
+    answer = (
+        "```python\n"
+        "from rdkit import Chem\n"
+        "from rdkit.Chem.MolStandardize import rdMolStandardize\n"
+        f"mol = Chem.MolFromSmiles('{smiles}')\n"
+        "chooser = rdMolStandardize.LargestFragmentChooser()\n"
+        "parent = chooser.choose(mol)\n"
+        "print(Chem.MolToSmiles(parent))\n"
+        "```\n\n"
+        + (f"Parent (largest fragment): `{parent_smi}`. "
+           "Counter-ions and co-crystals were stripped." if changed else
+           f"The molecule `{parent_smi}` contains no salt or co-crystal; it is already a single fragment.")
+    )
+    questions = [
+        f"Strip the salt from {smiles} and return the parent molecule.",
+        f"What is the largest organic fragment of {smiles}?",
+        f"Remove the counter-ion from {smiles}.",
+        f"Get the parent compound from this salt form: {smiles}",
+        f"Standardise {smiles} by choosing the largest fragment.",
+    ]
+    return _record(random.choice(questions), answer)
+
+
+# ---------------------------------------------------------------------------
+# R5 NEW: InChI and InChIKey
+# ---------------------------------------------------------------------------
+
+def inchikey_example(smiles: str):
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return None
+    try:
+        inchi_str = _rdkitInchi.MolToInchi(mol)
+        if not inchi_str:
+            return None
+        inchi_key = _rdkitInchi.InchiToInchiKey(inchi_str)
+        if not inchi_key:
+            return None
+    except Exception:
+        return None
+    answer = (
+        "```python\n"
+        "from rdkit import Chem\n"
+        "from rdkit.Chem import inchi\n"
+        f"mol = Chem.MolFromSmiles('{smiles}')\n"
+        "inchi_str = inchi.MolToInchi(mol)\n"
+        "inchi_key = inchi.InchiToInchiKey(inchi_str)\n"
+        "print('InChI:', inchi_str)\n"
+        "print('InChIKey:', inchi_key)\n"
+        "```\n\n"
+        f"InChI: `{inchi_str}`  \n"
+        f"InChIKey: `{inchi_key}`  \n\n"
+        "The InChIKey is a fixed-length hash (27 chars) suitable as a database identifier. "
+        "The first 14 chars encode connectivity; the last 9 encode stereo and charge."
+    )
+    questions = [
+        f"Compute the InChIKey for {smiles}.",
+        f"What is the InChIKey of {smiles}?",
+        f"Generate the InChI and InChIKey for {smiles}.",
+        f"Convert this SMILES to InChIKey: {smiles}",
+        f"What is the standard InChI identifier for {smiles}?",
+    ]
+    return _record(random.choice(questions), answer)
+
+
+# ---------------------------------------------------------------------------
+# R5 NEW: Stereo / chirality perception
+# ---------------------------------------------------------------------------
+
+def stereo_example(smiles: str):
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return None
+    try:
+        Chem.AssignStereochemistry(mol, cleanIt=True, force=True)
+        chiral = Chem.FindMolChiralCenters(mol, includeUnassigned=True)
+    except Exception:
+        return None
+    n_chiral = len(chiral)
+    stereo_desc = ", ".join(f"atom {idx} ({cip})" for idx, cip in chiral) if chiral else "none"
+    answer = (
+        "```python\n"
+        "from rdkit import Chem\n"
+        f"mol = Chem.MolFromSmiles('{smiles}')\n"
+        "Chem.AssignStereochemistry(mol, cleanIt=True, force=True)\n"
+        "chiral_centers = Chem.FindMolChiralCenters(mol, includeUnassigned=True)\n"
+        "print('Chiral centers:', chiral_centers)\n"
+        "print('Count:', len(chiral_centers))\n"
+        "```\n\n"
+        + (f"**{n_chiral} chiral center(s):** {stereo_desc}. "
+           f"Maximum {2**n_chiral} stereoisomers possible." if n_chiral > 0 else
+           "**No chiral centers detected.** The molecule is achiral.")
+    )
+    questions = [
+        f"How many chiral centers does {smiles} have?",
+        f"Identify the stereocenters in {smiles}.",
+        f"What is the stereochemistry of {smiles}?",
+        f"Find all chiral centers in {smiles} using RDKit.",
+        f"Does {smiles} have any stereocenters?",
+    ]
+    return _record(random.choice(questions), answer)
+
+
+# ---------------------------------------------------------------------------
+# R5 NEW: Tautomer enumeration
+# ---------------------------------------------------------------------------
+
+def tautomer_example(smiles: str):
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return None
+    try:
+        enumerator = _rdMolStd.TautomerEnumerator()
+        tauts = enumerator.Enumerate(mol)
+        taut_smiles = sorted({Chem.MolToSmiles(t) for t in tauts})
+        if len(taut_smiles) < 2:
+            return None  # skip molecules with no meaningful tautomers
+        canonical_taut = enumerator.Canonicalize(mol)
+        canon_smi = Chem.MolToSmiles(canonical_taut)
+    except Exception:
+        return None
+    n = len(taut_smiles)
+    shown = taut_smiles[:4]
+    answer = (
+        "```python\n"
+        "from rdkit import Chem\n"
+        "from rdkit.Chem.MolStandardize import rdMolStandardize\n"
+        f"mol = Chem.MolFromSmiles('{smiles}')\n"
+        "enumerator = rdMolStandardize.TautomerEnumerator()\n"
+        "tauts = enumerator.Enumerate(mol)\n"
+        "taut_smiles = sorted({Chem.MolToSmiles(t) for t in tauts})\n"
+        "canonical = enumerator.Canonicalize(mol)\n"
+        "print('Tautomers:', len(taut_smiles))\n"
+        "print('Canonical tautomer:', Chem.MolToSmiles(canonical))\n"
+        "```\n\n"
+        f"**{n} tautomer(s) enumerated.** Canonical tautomer: `{canon_smi}`.\n\n"
+        "Representative forms:\n"
+        + "\n".join(f"- `{s}`" for s in shown)
+        + ("\n- _(and more…)_" if n > 4 else "")
+    )
+    questions = [
+        f"Enumerate the tautomers of {smiles}.",
+        f"How many tautomers does {smiles} have?",
+        f"What are the tautomeric forms of {smiles}?",
+        f"Generate all tautomers of {smiles} using RDKit.",
+        f"What is the canonical tautomer of {smiles}?",
+    ]
+    return _record(random.choice(questions), answer)
+
+
+# ---------------------------------------------------------------------------
+# R5 NEW: Multi-molecule QED ranking (3-4 compounds)
+# ---------------------------------------------------------------------------
+
+def multi_mol_rank_example(smiles_list: list):
+    mols, valid = [], []
+    for s in smiles_list:
+        m = Chem.MolFromSmiles(s)
+        if m is not None:
+            mols.append((s, m))
+    if len(mols) < 3:
+        return None
+    try:
+        results = [(s, round(_qed(m), 3)) for s, m in mols]
+    except Exception:
+        return None
+    ranked = sorted(results, key=lambda x: x[1], reverse=True)
+    code_lines = "\n".join(
+        f"    ('{s}', round(qed(Chem.MolFromSmiles('{s}')), 3)),"
+        for s, _ in mols
+    )
+    ranking_text = "\n".join(
+        f"{i+1}. `{s}` — QED {score}" for i, (s, score) in enumerate(ranked)
+    )
+    answer = (
+        "```python\n"
+        "from rdkit import Chem\n"
+        "from rdkit.Chem.QED import qed\n"
+        "compounds = [\n"
+        f"{code_lines}\n"
+        "]\n"
+        "ranked = sorted(compounds, key=lambda x: x[1], reverse=True)\n"
+        "for i, (smi, score) in enumerate(ranked, 1):\n"
+        "    print(f'{i}. {smi}: QED = {score}')\n"
+        "```\n\n"
+        f"QED ranking (highest to lowest drug-likeness):\n\n{ranking_text}\n\n"
+        f"`{ranked[0][0]}` has the highest QED ({ranked[0][1]}) and is the most drug-like. "
+        f"`{ranked[-1][0]}` has the lowest QED ({ranked[-1][1]})."
+    )
+    letters = "ABCDEFG"
+    compounds_block = "\n".join(f"{letters[i]}: {s}" for i, (s, _) in enumerate(mols))
+    questions = [
+        f"Rank these compounds by QED drug-likeness score:\n{compounds_block}",
+        f"Which of these molecules is most drug-like? Compute QED for each:\n{compounds_block}",
+        f"Sort these compounds from most to least drug-like using QED:\n{compounds_block}",
+        f"Compare the QED scores of these compounds and rank them:\n{compounds_block}",
+    ]
+    return _record(random.choice(questions), answer)
+
+
+# ---------------------------------------------------------------------------
+# R5 NEW: QED code-then-quote (QED value stated verbatim from code output)
+# ---------------------------------------------------------------------------
+
+def qed_code_then_quote_example(smiles: str):
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return None
+    try:
+        score = round(_qed(mol), 3)
+    except Exception:
+        return None
+    mw   = round(Descriptors.MolWt(mol), 1)
+    logp = round(Descriptors.MolLogP(mol), 2)
+    interp = (
+        "highly drug-like" if score > 0.67 else
+        "moderately drug-like" if score > 0.33 else
+        "poorly drug-like"
+    )
+    answer = (
+        "I will compute the QED score and all major descriptors.\n\n"
+        "```python\n"
+        "from rdkit import Chem\n"
+        "from rdkit.Chem import Descriptors, rdMolDescriptors, Lipinski\n"
+        "from rdkit.Chem.QED import qed\n"
+        f"mol = Chem.MolFromSmiles('{smiles}')\n"
+        "print('MW:', round(Descriptors.MolWt(mol), 1))\n"
+        "print('logP:', round(Descriptors.MolLogP(mol), 2))\n"
+        "print('QED:', round(qed(mol), 3))\n"
+        "```\n\n"
+        f"MW: {mw}, logP: {logp}, QED: {score}. "
+        f"The compound is {interp} (QED {score})."
+    )
+    return _record(
+        f"Compute the QED score and key properties of {smiles}. "
+        "Quote the exact values from the RDKit output.",
+        answer,
+    )
+
+
+# ---------------------------------------------------------------------------
+# R5 NEW: Fingerprint similarity (explicit, no scaffold confusion)
+# ---------------------------------------------------------------------------
+
+def fingerprint_similarity_example(smi_a: str, smi_b: str):
+    mol_a = Chem.MolFromSmiles(smi_a)
+    mol_b = Chem.MolFromSmiles(smi_b)
+    if mol_a is None or mol_b is None:
+        return None
+    gen  = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
+    fp_a = gen.GetFingerprint(mol_a)
+    fp_b = gen.GetFingerprint(mol_b)
+    sim  = round(DataStructs.TanimotoSimilarity(fp_a, fp_b), 3)
+    interp = (
+        "closely related (Tc ≥ 0.7)" if sim >= 0.7 else
+        "moderately similar (0.4 ≤ Tc < 0.7)" if sim >= 0.4 else
+        "structurally dissimilar (Tc < 0.4)"
+    )
+    answer = (
+        "I will compute Tanimoto similarity using Morgan (ECFP4) fingerprints.\n\n"
+        "```python\n"
+        "from rdkit import Chem, DataStructs\n"
+        "from rdkit.Chem import rdFingerprintGenerator\n"
+        f"mol_a = Chem.MolFromSmiles('{smi_a}')\n"
+        f"mol_b = Chem.MolFromSmiles('{smi_b}')\n"
+        "gen  = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)\n"
+        "fp_a = gen.GetFingerprint(mol_a)\n"
+        "fp_b = gen.GetFingerprint(mol_b)\n"
+        "print(round(DataStructs.TanimotoSimilarity(fp_a, fp_b), 3))\n"
+        "```\n\n"
+        f"Tanimoto similarity (Morgan r=2): **{sim}**. The compounds are {interp}."
+    )
+    questions = [
+        f"What is the Tanimoto similarity between {smi_a} and {smi_b}?",
+        f"Compute the Morgan fingerprint similarity of {smi_a} and {smi_b}.",
+        f"Calculate the structural similarity between {smi_a} and {smi_b} using ECFP4.",
+        f"How similar are {smi_a} and {smi_b}? Use Tanimoto on Morgan fingerprints.",
+        f"What is the ECFP4 Tanimoto coefficient between {smi_a} and {smi_b}?",
+        f"Calculate the fingerprint similarity of these two compounds:\nA: {smi_a}\nB: {smi_b}",
+    ]
+    return _record(random.choice(questions), answer)
+
+
+# ---------------------------------------------------------------------------
+# R5 NEW: Lipinski card with code-then-quote pattern
+# ---------------------------------------------------------------------------
+
+def lipinski_card_example(smiles: str):
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return None
+    mw   = round(Descriptors.MolWt(mol), 1)
+    logp = round(Descriptors.MolLogP(mol), 2)
+    hbd  = Lipinski.NumHDonors(mol)
+    hba  = Lipinski.NumHAcceptors(mol)
+    tpsa = round(rdMolDescriptors.CalcTPSA(mol), 1)
+    try:
+        score = round(_qed(mol), 3)
+    except Exception:
+        score = None
+    passes = mw < 500 and logp < 5 and hbd <= 5 and hba <= 10
+    verdict = "✅ PASS" if passes else "❌ FAIL"
+    checks = [
+        ("MW", mw, "< 500", mw < 500),
+        ("logP", logp, "< 5", logp < 5),
+        ("HBD", hbd, "≤ 5", hbd <= 5),
+        ("HBA", hba, "≤ 10", hba <= 10),
+    ]
+    card_lines = "\n".join(
+        f"| {prop} | {val} | {limit} | {'✅' if ok else '❌'} |"
+        for prop, val, limit, ok in checks
+    )
+    qed_line = f"\nQED drug-likeness score: {score}." if score else ""
+    answer = (
+        "```python\n"
+        "from rdkit import Chem\n"
+        "from rdkit.Chem import Descriptors, Lipinski, rdMolDescriptors\n"
+        "from rdkit.Chem.QED import qed\n"
+        f"mol = Chem.MolFromSmiles('{smiles}')\n"
+        "print('MW:',   round(Descriptors.MolWt(mol), 1))\n"
+        "print('logP:', round(Descriptors.MolLogP(mol), 2))\n"
+        "print('HBD:',  Lipinski.NumHDonors(mol))\n"
+        "print('HBA:',  Lipinski.NumHAcceptors(mol))\n"
+        "print('TPSA:', round(rdMolDescriptors.CalcTPSA(mol), 1))\n"
+        "print('QED:',  round(qed(mol), 3))\n"
+        "```\n\n"
+        f"**Lipinski Rule of Five: {verdict}**\n\n"
+        f"| Property | Value | Limit | Pass? |\n"
+        f"|---|---|---|---|\n"
+        f"{card_lines}\n"
+        f"| TPSA | {tpsa} Å² | ≤ 140 (Veber) | {'✅' if tpsa <= 140 else '❌'} |"
+        f"{qed_line}"
+    )
+    questions = [
+        f"Generate a Lipinski card for {smiles}.",
+        f"Assess the oral bioavailability of {smiles} using Lipinski and Veber rules.",
+        f"Does {smiles} pass Lipinski's Rule of Five? Show a property table.",
+        f"Compute MW, logP, HBD, HBA, TPSA and QED for {smiles}.",
+    ]
+    return _record(random.choice(questions), answer)
+
+
+# ---------------------------------------------------------------------------
+# R5 NEW: PAINS / Brenk structural filter
+# ---------------------------------------------------------------------------
+
+_PAINS_CONTEXT_QUESTIONS = [
+    "Screen {smiles} for PAINS and Brenk structural alerts.",
+    "Does {smiles} contain any PAINS substructures?",
+    "Check if {smiles} flags any pan-assay interference alerts.",
+    "Run a structural alert screen on {smiles}.",
+    "Is {smiles} a PAINS compound? Check with RDKit.",
+]
+
+
+def pains_filter_example(smiles: str):
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return None
+    matches = list(_FILTER_CATALOG.GetMatches(mol))
+    if matches:
+        alerts = sorted({e.GetDescription() for e in matches})
+        alert_text = ", ".join(f"`{a}`" for a in alerts)
+        verdict = f"**PAINS/Brenk alert(s) detected:** {alert_text}."
+        action = (
+            "Avoid using this compound as a primary hit in biochemical assays without "
+            "orthogonal confirmation (e.g., SPR, NanoBRET, or biophysical assay). "
+            "Consider analogues with the alert removed."
+        )
+    else:
+        verdict = "**Clean:** No PAINS or Brenk alerts detected."
+        action = "This compound is suitable for primary screening."
+    answer = (
+        "```python\n"
+        "from rdkit import Chem\n"
+        "from rdkit.Chem import FilterCatalog\n"
+        "params = FilterCatalog.FilterCatalogParams()\n"
+        "params.AddCatalog(FilterCatalog.FilterCatalogParams.FilterCatalogs.PAINS)\n"
+        "params.AddCatalog(FilterCatalog.FilterCatalogParams.FilterCatalogs.BRENK)\n"
+        "catalog = FilterCatalog.FilterCatalog(params)\n"
+        f"mol = Chem.MolFromSmiles('{smiles}')\n"
+        "matches = list(catalog.GetMatches(mol))\n"
+        "for entry in matches:\n"
+        "    print(entry.GetDescription())\n"
+        "print('Clean' if not matches else f'{len(matches)} alert(s)')\n"
+        "```\n\n"
+        f"{verdict} {action}"
+    )
+    return _record(
+        random.choice(_PAINS_CONTEXT_QUESTIONS).format(smiles=smiles),
+        answer,
+    )
+
+
+# ---------------------------------------------------------------------------
+# R5 NEW: Structural alerts / reactive groups (hardcoded medchem knowledge)
+# ---------------------------------------------------------------------------
+
+_STRUCTURAL_ALERTS = [
+    {
+        "name": "Michael acceptor (α,β-unsaturated carbonyl)",
+        "smarts": "[CX3](=[OX1])[CX3]=[CX3]",
+        "risk": "Covalent warhead — reacts with Cys/Lys nucleophiles. Intentional in covalent drugs (e.g., ibrutinib); unacceptable as a non-covalent hit.",
+        "example_smi": "O=C/C=C/c1ccccc1",  # cinnamaldehyde
+        "example_name": "cinnamaldehyde",
+    },
+    {
+        "name": "Aldehyde",
+        "smarts": "[CX3H1](=O)[#6]",
+        "risk": "Forms imines with Lys and Schiff bases — covalent, reversible. Flags as a Brenk alert. Can cause non-specific activity in HTS.",
+        "example_smi": "O=Cc1ccccc1",  # benzaldehyde
+        "example_name": "benzaldehyde",
+    },
+    {
+        "name": "Epoxide",
+        "smarts": "[OX2r3]1[#6r3][#6r3]1",
+        "risk": "Reactive alkylating agent. Reacts non-specifically with DNA and proteins. Remove from non-covalent hit series.",
+        "example_smi": "C1OC1",  # ethylene oxide
+        "example_name": "epoxide",
+    },
+    {
+        "name": "Nitroaromatic",
+        "smarts": "[$([nX3](=O)),$([NX3](=O)=O),$([NX3+](=O)[O-])][a]",
+        "risk": "Metabolically reduced to reactive nitroso/hydroxylamine intermediates — genotoxicity risk. Flagged in most drug safety panels.",
+        "example_smi": "O=[N+]([O-])c1ccccc1",  # nitrobenzene
+        "example_name": "nitrobenzene",
+    },
+    {
+        "name": "Rhodanine",
+        "smarts": "O=C1NC(=S)S1",
+        "risk": "Classic PAINS scaffold — aggregates in solution and gives false positives in many biochemical assays. Promiscuous binder.",
+        "example_smi": "O=C1NC(=S)S1",
+        "example_name": "rhodanine",
+    },
+    {
+        "name": "Acyl halide",
+        "smarts": "[CX3](=[OX1])[F,Cl,Br,I]",
+        "risk": "Highly reactive electrophile; hydrolyses rapidly in aqueous media. Not suitable as an HTS compound.",
+        "example_smi": "ClC(=O)c1ccccc1",  # benzoyl chloride
+        "example_name": "benzoyl chloride",
+    },
+]
+
+
+def structural_alert_example(smiles: str):
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return None
+    # Pick a random alert and check if this molecule triggers it OR use a known example
+    alert = random.choice(_STRUCTURAL_ALERTS)
+    patt = Chem.MolFromSmarts(alert["smarts"])
+    if patt is None:
+        return None
+    # 60% of the time use the built-in example; 40% use seed SMILES (may be clean)
+    if random.random() < 0.6:
+        mol = Chem.MolFromSmiles(alert["example_smi"])
+        smiles = alert["example_smi"]
+        display_name = alert["example_name"]
+    else:
+        display_name = smiles
+    hits = mol.HasSubstructMatch(patt) if mol else False
+    answer = (
+        "```python\n"
+        "from rdkit import Chem\n"
+        f"mol = Chem.MolFromSmiles('{smiles}')\n"
+        f"patt = Chem.MolFromSmarts('{alert['smarts']}')\n"
+        "print('Alert present:', mol.HasSubstructMatch(patt))\n"
+        "```\n\n"
+        f"**{alert['name']}** (`{alert['smarts']}`) — alert {'present' if hits else 'absent'} in `{display_name}`.\n\n"
+        f"**Risk:** {alert['risk']}"
+    )
+    questions = [
+        f"Does {display_name} ({smiles}) contain a {alert['name']}?",
+        f"Check for reactive alerts in {smiles}: specifically {alert['name']}.",
+        f"Is the substructure {alert['smarts']} present in {smiles}?",
+        f"Assess the reactivity risk of {smiles} for {alert['name']}.",
+    ]
+    return _record(random.choice(questions), answer)
+
+
+# ---------------------------------------------------------------------------
+# R5 NEW: Classic bioisostere pairs
+# ---------------------------------------------------------------------------
+
+_BIOISOSTERE_PAIRS = [
+    {
+        "original": "carboxylic acid (-COOH)",
+        "bioisostere": "tetrazole (-CN₄H)",
+        "original_smarts": "[CX3](=O)[OX2H1]",
+        "iso_smarts": "c1nn[nH]n1",
+        "rationale": (
+            "Tetrazole is a classical bioisostere for carboxylic acid. "
+            "Both are acidic (tetrazole pKa ~4.9 vs COOH ~4–5) and adopt similar geometry. "
+            "Tetrazole is more metabolically stable (no glucuronidation) and often has better "
+            "membrane permeability. Used in losartan (AT1 antagonist) in place of the COOH in valsartan."
+        ),
+    },
+    {
+        "original": "phenol (-OH on aromatic)",
+        "bioisostere": "fluorine (-F)",
+        "original_smarts": "[OX2H][c]",
+        "iso_smarts": "[F][c]",
+        "rationale": (
+            "Fluorine is a weak bioisostere for phenol OH. Both have similar van der Waals radii "
+            "(F=1.47 Å, O=1.52 Å) and can accept H-bonds, but F rarely donates. "
+            "Replacing phenol with F removes a metabolic soft spot (glucuronidation, sulfation) "
+            "and typically raises logP by ~0.1–0.5. Useful when the OH is not critical for binding."
+        ),
+    },
+    {
+        "original": "ester (-COOR)",
+        "bioisostere": "amide (-CONH-)",
+        "original_smarts": "[CX3](=O)[OX2H0][#6]",
+        "iso_smarts": "[NX3][CX3](=[OX1])",
+        "rationale": (
+            "Amide is more metabolically stable than ester (less susceptible to esterase cleavage). "
+            "H-bond donor capacity increases with the NH. The amide is more rigid (partial double bond "
+            "character), which can improve selectivity but reduce flexibility. "
+            "A prodrug strategy reverses this: use the ester for oral bioavailability, "
+            "cleave to acid in vivo."
+        ),
+    },
+    {
+        "original": "halide (Cl, Br)",
+        "bioisostere": "trifluoromethyl (-CF₃)",
+        "original_smarts": "[Cl,Br][c]",
+        "iso_smarts": "[CX4](F)(F)F",
+        "rationale": (
+            "-CF₃ is a metabolically stable bioisostere for aryl Cl/Br. It is electron-withdrawing "
+            "(σp = +0.54), lipophilic (adds ~0.9 logP), and strongly resists oxidative metabolism. "
+            "MW increases by ~51 Da (vs Cl=+16). Useful when the halogen is a metabolic hotspot."
+        ),
+    },
+    {
+        "original": "pyridine (N-heterocycle)",
+        "bioisostere": "pyrimidine or pyridazine",
+        "original_smarts": "n1ccccc1",
+        "iso_smarts": "n1ccncc1",
+        "rationale": (
+            "Pyrimidine is a classical bioisostere for pyridine with an additional H-bond acceptor. "
+            "Adding the second N reduces logP (~0.3–0.5 units) and increases aqueous solubility. "
+            "Also reduces hERG liability (aromatic amines more basic). Used extensively in kinase "
+            "inhibitors (imatinib, nilotinib, gefitinib)."
+        ),
+    },
+]
+
+
+def bioisostere_example(smiles: str):
+    pair = random.choice(_BIOISOSTERE_PAIRS)
+    answer = (
+        f"**Bioisostere:** {pair['original']} → {pair['bioisostere']}\n\n"
+        "```python\n"
+        "from rdkit import Chem\n"
+        "# Detect the original group\n"
+        f"patt = Chem.MolFromSmarts('{pair['original_smarts']}')\n"
+        f"mol = Chem.MolFromSmiles('{smiles}')\n"
+        "has_group = mol.HasSubstructMatch(patt)\n"
+        "print('Original group present:', has_group)\n"
+        "```\n\n"
+        f"**Rationale:** {pair['rationale']}"
+    )
+    questions = [
+        f"What is a good bioisostere for the {pair['original']} group in {smiles}?",
+        f"Suggest a bioisostere replacement for the {pair['original']} in {smiles}.",
+        f"How can I replace the {pair['original']} in {smiles} with a bioisostere?",
+        f"What is the bioisosteric equivalent of a {pair['original']}?",
+    ]
+    return _record(random.choice(questions), answer)
+
+
+# ---------------------------------------------------------------------------
+# R5 NEW: Lead optimisation rules (CNS MPO, PFI, golden triangle)
+# ---------------------------------------------------------------------------
+
+def lead_opt_rules_example(smiles: str):
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return None
+    mw   = round(Descriptors.MolWt(mol), 1)
+    logp = round(Descriptors.MolLogP(mol), 2)
+    hbd  = Lipinski.NumHDonors(mol)
+    hba  = Lipinski.NumHAcceptors(mol)
+    tpsa = round(rdMolDescriptors.CalcTPSA(mol), 1)
+    rot  = rdMolDescriptors.CalcNumRotatableBonds(mol)
+    arom = rdMolDescriptors.CalcNumAromaticRings(mol)
+    try:
+        score = round(_qed(mol), 3)
+    except Exception:
+        score = None
+
+    # PFI (Property Forecast Index) = logP + aromatic ring count
+    pfi = round(logp + arom, 2)
+    pfi_ok = pfi < 8
+    # CNS MPO (simplified: 6 params, each 0-1)
+    def _cns_mpo():
+        s = 0.0
+        s += 1.0 if mw <= 360 else (0.0 if mw >= 500 else (500 - mw) / 140)
+        s += 1.0 if logp <= 3 else (0.0 if logp >= 5 else (5 - logp) / 2)
+        s += 1.0 if tpsa >= 40 else (0.0 if tpsa == 0 else tpsa / 40)
+        s += 0.0 if tpsa > 90 else (1.0 if tpsa <= 60 else (90 - tpsa) / 30)
+        s += 1.0 if hbd <= 0 else (0.0 if hbd >= 3 else (3 - hbd) / 3)
+        s += 1.0 if rot <= 8 else (0.0 if rot >= 10 else (10 - rot) / 2)
+        return round(s, 2)
+    cns_mpo = _cns_mpo()
+
+    # Golden triangle: good CNS drugs have MW 200–450 and logP 1–3
+    golden = (200 <= mw <= 450) and (1 <= logp <= 3)
+
+    answer = (
+        "```python\n"
+        "from rdkit import Chem\n"
+        "from rdkit.Chem import Descriptors, Lipinski, rdMolDescriptors\n"
+        f"mol = Chem.MolFromSmiles('{smiles}')\n"
+        "mw   = round(Descriptors.MolWt(mol), 1)\n"
+        "logp = round(Descriptors.MolLogP(mol), 2)\n"
+        "arom = rdMolDescriptors.CalcNumAromaticRings(mol)\n"
+        "pfi  = round(logp + arom, 2)\n"
+        "print('MW:', mw, 'logP:', logp, 'Arom rings:', arom, 'PFI:', pfi)\n"
+        "```\n\n"
+        f"**Lead-optimisation scorecard for `{smiles}`:**\n\n"
+        f"| Rule | Value | Threshold | Result |\n"
+        f"|---|---|---|---|\n"
+        f"| PFI (logP + arom rings) | {pfi} | < 8 | {'✅' if pfi_ok else '❌'} |\n"
+        f"| CNS MPO score | {cns_mpo}/6 | ≥ 4 = CNS-ready | {'✅' if cns_mpo >= 4 else '⚠️'} |\n"
+        f"| Golden triangle (MW 200–450, logP 1–3) | MW {mw}, logP {logp} | — | {'✅' if golden else '❌'} |\n"
+        f"| HBD | {hbd} | ≤ 3 (CNS) | {'✅' if hbd <= 3 else '❌'} |\n"
+        f"| TPSA | {tpsa} Å² | < 90 Å² (BBB) | {'✅' if tpsa < 90 else '❌'} |\n\n"
+        "**PFI** (Pfizer's Property Forecast Index) predicts solubility and non-specific binding: "
+        "logP + number of aromatic rings < 8 is the target zone. "
+        "**CNS MPO** integrates MW, logP, TPSA, HBD, and RotBonds into a 0–6 score; ≥ 4 predicts CNS penetration."
+    )
+    questions = [
+        f"Evaluate {smiles} for CNS drug-likeness using PFI and CNS MPO.",
+        f"Apply lead-optimisation rules (PFI, CNS MPO, golden triangle) to {smiles}.",
+        f"Score {smiles} against Pfizer's PFI and the golden triangle rule.",
+        f"Is {smiles} a suitable CNS drug candidate? Compute PFI and CNS MPO.",
+    ]
+    return _record(random.choice(questions), answer)
+
+
+# ---------------------------------------------------------------------------
+# R5 NEW: ADME heuristics (BBB, solubility, P-gp)
+# ---------------------------------------------------------------------------
+
+_ADME_RULES = [
+    {
+        "name": "Blood-brain barrier (BBB) penetration",
+        "criteria": "logP 1–3, PSA < 90 Å², MW < 450, HBD ≤ 3, rotatable bonds ≤ 8",
+        "params": lambda mw, logp, hbd, tpsa, rot: {
+            "BBB penetrant": (1 <= logp <= 3) and (tpsa < 90) and (mw < 450) and (hbd <= 3) and (rot <= 8),
+            "logP 1–3": 1 <= logp <= 3,
+            "PSA < 90 Å²": tpsa < 90,
+            "MW < 450": mw < 450,
+            "HBD ≤ 3": hbd <= 3,
+        },
+        "question": "Can {smiles} penetrate the blood-brain barrier?",
+    },
+    {
+        "name": "Aqueous solubility (Lipinski/GSK rule)",
+        "criteria": "logS (estimated) > −5; GSK: logP < 4 and MW < 400 for good solubility",
+        "params": lambda mw, logp, hbd, tpsa, rot: {
+            "Likely soluble (GSK)": logp < 4 and mw < 400,
+            "logP < 4": logp < 4,
+            "MW < 400": mw < 400,
+        },
+        "question": "Predict the aqueous solubility profile of {smiles}.",
+    },
+    {
+        "name": "P-gp efflux liability",
+        "criteria": "MW > 400, logP > 4, HBD > 2, PSA < 40: risk of P-gp substrate",
+        "params": lambda mw, logp, hbd, tpsa, rot: {
+            "P-gp risk": (mw > 400) and (logp > 4) and (hbd > 2),
+            "MW > 400": mw > 400,
+            "logP > 4": logp > 4,
+            "HBD > 2": hbd > 2,
+        },
+        "question": "Assess P-gp efflux liability for {smiles}.",
+    },
+]
+
+
+def adme_heuristics_example(smiles: str):
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return None
+    mw   = round(Descriptors.MolWt(mol), 1)
+    logp = round(Descriptors.MolLogP(mol), 2)
+    hbd  = Lipinski.NumHDonors(mol)
+    tpsa = round(rdMolDescriptors.CalcTPSA(mol), 1)
+    rot  = rdMolDescriptors.CalcNumRotatableBonds(mol)
+    rule = random.choice(_ADME_RULES)
+    checks = rule["params"](mw, logp, hbd, tpsa, rot)
+    rows = "\n".join(
+        f"| {k} | {'✅' if v else '❌'} |"
+        for k, v in checks.items()
+    )
+    overall_key = list(checks.keys())[0]
+    overall = checks[overall_key]
+    answer = (
+        "```python\n"
+        "from rdkit import Chem\n"
+        "from rdkit.Chem import Descriptors, Lipinski, rdMolDescriptors\n"
+        f"mol = Chem.MolFromSmiles('{smiles}')\n"
+        "print('MW:',   round(Descriptors.MolWt(mol), 1))\n"
+        "print('logP:', round(Descriptors.MolLogP(mol), 2))\n"
+        "print('HBD:',  Lipinski.NumHDonors(mol))\n"
+        "print('TPSA:', round(rdMolDescriptors.CalcTPSA(mol), 1))\n"
+        "print('RotB:', rdMolDescriptors.CalcNumRotatableBonds(mol))\n"
+        "```\n\n"
+        f"**{rule['name']}** ({rule['criteria']})\n\n"
+        f"| Criterion | Met? |\n|---|---|\n{rows}\n\n"
+        f"**Verdict:** {'Likely ' + overall_key if overall else 'May not meet: ' + overall_key}. "
+        "These are heuristic rules — experimental PAMPA, Caco-2, or efflux assays are required for confirmation."
+    )
+    return _record(rule["question"].format(smiles=smiles), answer)
+
+
+# ---------------------------------------------------------------------------
+# R5 NEW: Synthetic accessibility score
+# ---------------------------------------------------------------------------
+
+def sa_score_example(smiles: str):
+    if not _HAS_SASCORER:
+        return None
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return None
+    try:
+        sa = round(_sascorer.calculateScore(mol), 2)
+    except Exception:
+        return None
+    if sa <= 2:
+        interp = "very easy to synthesise (SA ≤ 2)"
+    elif sa <= 4:
+        interp = "readily accessible (SA 2–4)"
+    elif sa <= 6:
+        interp = "moderately difficult to synthesise (SA 4–6)"
+    else:
+        interp = "challenging synthesis (SA > 6)"
+    answer = (
+        "```python\n"
+        "import sys, os\n"
+        "from rdkit.Chem import RDConfig\n"
+        "sys.path.append(os.path.join(RDConfig.RDContribDir, 'SA_Score'))\n"
+        "import sascorer\n"
+        "from rdkit import Chem\n"
+        f"mol = Chem.MolFromSmiles('{smiles}')\n"
+        "print(round(sascorer.calculateScore(mol), 2))\n"
+        "```\n\n"
+        f"SA score: **{sa}** — {interp}. "
+        "The SA score (Ertl & Schuffenhauer, 2009) runs from 1 (trivially simple) to 10 (extremely complex). "
+        "It penalises rare ring systems, large molecular complexity, and unusual substitution patterns."
+    )
+    questions = [
+        f"Calculate the synthetic accessibility score of {smiles}.",
+        f"How easy is {smiles} to synthesise? Compute the SA score.",
+        f"What is the SA score of {smiles}?",
+        f"Assess the synthetic accessibility of {smiles} using the Ertl SA score.",
+        f"Is {smiles} synthetically accessible? Use RDKit SA score.",
+    ]
+    return _record(random.choice(questions), answer)
+
+
+# ---------------------------------------------------------------------------
+# R5 NEW: PDB structure quality interpretation
+# ---------------------------------------------------------------------------
+
+_PDB_QUALITY_QUESTIONS = [
+    {
+        "q": "How do I assess the quality of a PDB structure before using it for docking?",
+        "a": (
+            "Check these quality indicators before using any PDB entry:\n\n"
+            "| Metric | Good | Acceptable | Caution |\n"
+            "|---|---|---|---|\n"
+            "| Resolution (Å) | < 2.0 | 2.0–2.5 | > 2.5 |\n"
+            "| R-factor | < 0.20 | 0.20–0.25 | > 0.25 |\n"
+            "| R-free | < 0.25 | 0.25–0.30 | > 0.30 |\n"
+            "| R-free/R gap | < 0.05 | 0.05–0.07 | > 0.07 |\n"
+            "| MolProbity score | < 1.0 | 1.0–2.0 | > 2.0 |\n"
+            "| Ramachandran outliers (%) | < 0.5 | 0.5–2 | > 2 |\n\n"
+            "```python\n"
+            "# Fetch quality data from RCSB PDB validation API\n"
+            "import requests\n"
+            "pdb_id = '1HSG'\n"
+            "url = f'https://data.rcsb.org/rest/v1/core/entry/{pdb_id}'\n"
+            "data = requests.get(url).json()\n"
+            "refine = data.get('refine', [{}])[0]\n"
+            "print('Resolution:', data.get('rcsb_entry_info', {}).get('resolution_combined', 'N/A'))\n"
+            "print('R-work:', refine.get('ls_r_factor_r_work'))\n"
+            "print('R-free:', refine.get('ls_r_factor_r_free'))\n"
+            "```\n\n"
+            "**Also check:** crystal form (P212121 is common), space group, presence of "
+            "buffer/co-solvent in the active site, and whether the ligand pose has clear electron density (RSCC > 0.8)."
+        ),
+    },
+    {
+        "q": "What does a high R-free/R-factor gap mean in a PDB structure?",
+        "a": (
+            "The R-factor measures how well the structural model explains the diffraction data; "
+            "the R-free is computed on a held-out 5% test set.\n\n"
+            "- **R-factor** reflects overall model fit. Target < 0.20 for high-quality structures.\n"
+            "- **R-free** is the unbiased estimate. Target < 0.25.\n"
+            "- **R-free/R gap > 0.07** suggests **model overfitting** (too many parameters chasing the data). "
+            "The model may have been over-refined or contain model bias.\n\n"
+            "For drug design, prioritise:\n"
+            "1. Resolution < 2.0 Å (side-chain geometry reliable)\n"
+            "2. R-free < 0.25 (not overfitted)\n"
+            "3. Ligand RSCC > 0.8 (electron density supports the pose)\n"
+            "4. No missing loops in the binding site\n\n"
+            "Check electron density using the **EDS** server or validate locally with `phenix.molprobity`."
+        ),
+    },
+    {
+        "q": "How do I read the resolution and R-factors from a PDB file in Python?",
+        "a": (
+            "```python\n"
+            "# Method 1: RCSB REST API (recommended, always up-to-date)\n"
+            "import requests\n"
+            "pdb_id = '1HSG'\n"
+            "url = f'https://data.rcsb.org/rest/v1/core/entry/{pdb_id}'\n"
+            "d = requests.get(url).json()\n"
+            "info = d.get('rcsb_entry_info', {})\n"
+            "refine = d.get('refine', [{}])[0]\n"
+            "print(f\"Resolution: {info.get('resolution_combined')} Å\")\n"
+            "print(f\"R-work: {refine.get('ls_r_factor_r_work')}\")\n"
+            "print(f\"R-free: {refine.get('ls_r_factor_r_free')}\")\n"
+            "\n"
+            "# Method 2: parse REMARK 3 from PDB file header\n"
+            "with open('1hsg.pdb') as f:\n"
+            "    for line in f:\n"
+            "        if line.startswith('REMARK   3') and 'R VALUE' in line:\n"
+            "            print(line.strip())\n"
+            "        if line.startswith('ATOM'):\n"
+            "            break\n"
+            "```\n\n"
+            "REMARK 3 in PDB format contains the refinement statistics. "
+            "The REST API is faster and machine-readable. "
+            "For bulk queries, use `https://data.rcsb.org/graphql` with GraphQL queries."
+        ),
+    },
+    {
+        "q": "What is the RSCC and why does it matter for validating a bound ligand?",
+        "a": (
+            "**RSCC (Real-space correlation coefficient)** measures how well a ligand model "
+            "fits the experimental electron density map at its position.\n\n"
+            "- Range: 0 (no correlation) to 1 (perfect fit)\n"
+            "- **RSCC > 0.8:** Ligand pose is supported by density — high confidence\n"
+            "- **RSCC 0.6–0.8:** Moderate confidence — check the Fo-Fc map manually\n"
+            "- **RSCC < 0.6:** Weak density — the pose may be unreliable; consider omit maps\n\n"
+            "```python\n"
+            "# RSCC data from RCSB PDB validation API\n"
+            "import requests\n"
+            "pdb_id = '1HSG'\n"
+            "url = f'https://data.rcsb.org/rest/v1/core/chemcomp_instance/{pdb_id}/MK1/A/902'\n"
+            "r = requests.get(url)\n"
+            "# See pdbx_vrpt_summary_geometry for RSCC\n"
+            "```\n\n"
+            "Always validate the binding pose visually in Coot, PyMOL with the electron density "
+            "map loaded, or via the PDB validation report at `https://www.rcsb.org/validate/{pdb_id}`."
+        ),
+    },
+]
+
+
+def pdb_quality_example():
+    ex = random.choice(_PDB_QUALITY_QUESTIONS)
+    return _record(ex["q"], ex["a"])
+
+
+# ---------------------------------------------------------------------------
+# R5 NEW: Cofactor and metal binding in protein structures
+# ---------------------------------------------------------------------------
+
+_COFACTOR_EXAMPLES = [
+    {
+        "cofactor": "zinc",
+        "residues": ["Cys", "His", "Asp", "Glu"],
+        "geometry": "tetrahedral (4-coordinate)",
+        "pdb_examples": ["1SLN", "4HW3", "1A4E"],
+        "comp_id": "ZN",
+        "note": (
+            "Zinc is the most common catalytic/structural metal in proteins. "
+            "Catalytic zinc (e.g., carbonic anhydrase, thermolysin) is coordinated by "
+            "3 protein ligands + 1 water. Structural zinc (zinc finger) uses 4 Cys/His ligands. "
+            "SMARTS for Cys zinc binder: `[#16X2][Zn]`."
+        ),
+        "code": (
+            "from Bio.PDB import PDBParser\n"
+            "parser = PDBParser(QUIET=True)\n"
+            "structure = parser.get_structure('prot', '{pdb}.pdb')\n"
+            "for model in structure:\n"
+            "    for chain in model:\n"
+            "        for res in chain:\n"
+            "            if res.get_resname() == 'ZN':\n"
+            "                print('Zinc at:', chain.id, res.id)\n"
+        ),
+    },
+    {
+        "cofactor": "heme (iron porphyrin)",
+        "residues": ["His (proximal)", "His or Cys (distal)"],
+        "geometry": "square planar with axial ligands",
+        "pdb_examples": ["1MBO", "1A6N", "3LGS"],
+        "comp_id": "HEM",
+        "note": (
+            "Heme is the prosthetic group of haemoglobin, myoglobin, cytochromes, and "
+            "CYP450 enzymes. The iron is coordinated by 4 porphyrin nitrogens + 1 axial His "
+            "(proximal). In CYP450, the distal axial ligand is Cys (thiolate). "
+            "The Fe can be Fe²⁺ (reduced, O₂-binding) or Fe³⁺ (oxidised). "
+            "Heme compounds (comp_id=HEM) appear as HETATM records."
+        ),
+        "code": (
+            "from Bio.PDB import PDBParser\n"
+            "parser = PDBParser(QUIET=True)\n"
+            "structure = parser.get_structure('mb', '{pdb}.pdb')\n"
+            "for model in structure:\n"
+            "    for chain in model:\n"
+            "        for res in chain:\n"
+            "            if res.get_resname() in ('HEM', 'HEC'):\n"
+            "                print('Heme in chain', chain.id, 'at', res.id)\n"
+        ),
+    },
+    {
+        "cofactor": "NAD⁺/NADH (nicotinamide adenine dinucleotide)",
+        "residues": ["Arg", "Ser", "Asp", "Thr"],
+        "geometry": "extended conformation in Rossmann fold",
+        "pdb_examples": ["1AXR", "3O3E", "5DHH"],
+        "comp_id": "NAD",
+        "note": (
+            "NAD⁺ is a hydride acceptor; NADH is the reduced form. The Rossmann fold "
+            "(βαβαβ) is the canonical NAD-binding domain — identified by the fingerprint "
+            "GXGXXG. The nicotinamide ring sits at the re or si face. "
+            "The ribose 2'-OH determines NAD vs NADP specificity: NADP has a 2'-phosphate. "
+            "Comp IDs: NAD, NAI, NDP (NADP), NDN."
+        ),
+        "code": (
+            "from Bio.PDB import PDBParser\n"
+            "parser = PDBParser(QUIET=True)\n"
+            "structure = parser.get_structure('dh', '{pdb}.pdb')\n"
+            "for model in structure:\n"
+            "    for chain in model:\n"
+            "        for res in chain:\n"
+            "            if res.get_resname() in ('NAD', 'NAI', 'NDP', 'NDN'):\n"
+            "                print('Cofactor', res.get_resname(), 'in chain', chain.id)\n"
+        ),
+    },
+    {
+        "cofactor": "ATP (adenosine triphosphate)",
+        "residues": ["Lys", "Asp", "Phe", "Gly-rich loop"],
+        "geometry": "P-loop / glycine-rich loop (GXGXXG) cradles the phosphates",
+        "pdb_examples": ["1ATP", "1FMK", "4GE1"],
+        "comp_id": "ATP",
+        "note": (
+            "ATP is the phosphate donor in kinase reactions. The adenine sits in the "
+            "hinge region; the phosphate tail contacts the DFG-Mg²⁺. "
+            "Non-hydrolysable analogues (AMPPNP, ADP-BeF₃) are used in structural studies. "
+            "The Mg²⁺ ion is essential and coordinates the β and γ phosphates. "
+            "Comp IDs: ATP, ADP, ANP (AMPPNP), ACP (ACPCP)."
+        ),
+        "code": (
+            "from Bio.PDB import PDBParser\n"
+            "parser = PDBParser(QUIET=True)\n"
+            "structure = parser.get_structure('kin', '{pdb}.pdb')\n"
+            "for model in structure:\n"
+            "    for chain in model:\n"
+            "        for res in chain:\n"
+            "            if res.get_resname() in ('ATP', 'ADP', 'ANP', 'ACP'):\n"
+            "                print('Nucleotide', res.get_resname(), 'in', chain.id)\n"
+        ),
+    },
+]
+
+
+def cofactor_binding_example():
+    ex = random.choice(_COFACTOR_EXAMPLES)
+    pdb = random.choice(ex["pdb_examples"])
+    code = ex["code"].replace("{pdb}", pdb.lower())
+    answer = (
+        f"**{ex['cofactor'].title()}** (comp_id: {ex['comp_id']})\n\n"
+        f"- **Coordinating residues:** {', '.join(ex['residues'])}\n"
+        f"- **Geometry:** {ex['geometry']}\n"
+        f"- **Example PDB:** {pdb}\n\n"
+        f"{ex['note']}\n\n"
+        "```python\n"
+        f"{code}"
+        "```"
+    )
+    questions = [
+        f"How is {ex['cofactor']} coordinated in protein structures? Use {pdb} as an example.",
+        f"What residues coordinate {ex['cofactor']} in PDB structure {pdb}?",
+        f"Describe the binding of {ex['cofactor']} in protein {pdb}.",
+        f"How do I identify {ex['cofactor']} binding sites in a PDB file using Biopython?",
+        f"What is the coordination geometry of {ex['cofactor']} in PDB {pdb}?",
+    ]
+    return _record(random.choice(questions), answer)
+
+
+# ---------------------------------------------------------------------------
+# R5 NEW: RCSB PDB REST API for programmatic structure retrieval
+# ---------------------------------------------------------------------------
+
+_RCSB_API_RECIPES = [
+    {
+        "intent": "download a PDB structure as a PDB file",
+        "code": (
+            "import requests\n"
+            "pdb_id = '{pdb}'\n"
+            "url = f'https://files.rcsb.org/download/{pdb_id}.pdb'\n"
+            "r = requests.get(url)\n"
+            "with open(f'{pdb_id}.pdb', 'w') as f:\n"
+            "    f.write(r.text)\n"
+            "print(f'Downloaded {pdb_id}.pdb ({len(r.text)} bytes)')\n"
+        ),
+        "note": "The RCSB files endpoint serves PDB and mmCIF formats. Use `.cif` for the mmCIF format. Legacy `.pdb` files are capped at 99999 atoms; use mmCIF for large structures.",
+    },
+    {
+        "intent": "search for all structures of a human kinase by UniProt ID",
+        "code": (
+            "import requests, json\n"
+            "uniprot_id = 'P00533'  # EGFR\n"
+            "query = {\n"
+            "    'query': {\n"
+            "        'type': 'terminal',\n"
+            "        'service': 'text',\n"
+            "        'parameters': {\n"
+            "            'attribute': 'rcsb_polymer_entity_container_identifiers.reference_sequence_identifiers.database_accession',\n"
+            "            'operator': 'exact_match',\n"
+            "            'value': uniprot_id\n"
+            "        }\n"
+            "    },\n"
+            "    'return_type': 'entry'\n"
+            "}\n"
+            "r = requests.post('https://search.rcsb.org/rcsbsearch/v2/query', json=query)\n"
+            "results = r.json()\n"
+            "pdb_ids = [hit['identifier'] for hit in results.get('result_set', [])]\n"
+            "print(f'Found {len(pdb_ids)} structures for {uniprot_id}:', pdb_ids[:5])\n"
+        ),
+        "note": "The RCSB Search API v2 supports structured queries. `return_type: entry` returns PDB IDs; use `polymer_entity` for chain-level results.",
+    },
+    {
+        "intent": "get metadata (resolution, R-factor, ligands) for a PDB entry",
+        "code": (
+            "import requests\n"
+            "pdb_id = '{pdb}'\n"
+            "url = f'https://data.rcsb.org/rest/v1/core/entry/{pdb_id}'\n"
+            "d = requests.get(url).json()\n"
+            "info = d.get('rcsb_entry_info', {})\n"
+            "refine = d.get('refine', [{}])[0]\n"
+            "print('Resolution:', info.get('resolution_combined'), 'Å')\n"
+            "print('R-work:', refine.get('ls_r_factor_r_work'))\n"
+            "print('R-free:', refine.get('ls_r_factor_r_free'))\n"
+            "print('Ligands:', info.get('nonpolymer_bound_components', []))\n"
+        ),
+        "note": "The RCSB Data API returns structured JSON for every PDB entry. It's faster than parsing PDB headers and always reflects the latest deposited data.",
+    },
+    {
+        "intent": "search for structures with a specific ligand (by comp_id)",
+        "code": (
+            "import requests\n"
+            "comp_id = 'STI'  # imatinib\n"
+            "query = {\n"
+            "    'query': {\n"
+            "        'type': 'terminal',\n"
+            "        'service': 'text',\n"
+            "        'parameters': {\n"
+            "            'attribute': 'rcsb_nonpolymer_instance_feature_summary.comp_id',\n"
+            "            'operator': 'exact_match',\n"
+            "            'value': comp_id\n"
+            "        }\n"
+            "    },\n"
+            "    'return_type': 'entry'\n"
+            "}\n"
+            "r = requests.post('https://search.rcsb.org/rcsbsearch/v2/query', json=query)\n"
+            "pdb_ids = [h['identifier'] for h in r.json().get('result_set', [])]\n"
+            "print(f'{comp_id} found in {len(pdb_ids)} structures:', pdb_ids[:5])\n"
+        ),
+        "note": "Searching by `comp_id` finds all co-crystal structures containing that ligand. Useful for finding alternative binding site geometries or selectivity data.",
+    },
+    {
+        "intent": "find all PDB entries from a paper by DOI",
+        "code": (
+            "import requests\n"
+            "doi = '10.2210/pdb1HSG/pdb'\n"
+            "query = {\n"
+            "    'query': {\n"
+            "        'type': 'terminal',\n"
+            "        'service': 'text',\n"
+            "        'parameters': {\n"
+            "            'attribute': 'rcsb_primary_citation.pdbx_database_id_doi',\n"
+            "            'operator': 'exact_match',\n"
+            "            'value': doi\n"
+            "        }\n"
+            "    },\n"
+            "    'return_type': 'entry'\n"
+            "}\n"
+            "r = requests.post('https://search.rcsb.org/rcsbsearch/v2/query', json=query)\n"
+            "print(r.json().get('result_set', []))\n"
+        ),
+        "note": "The RCSB assigns DOIs to each PDB entry (format: 10.2210/pdbXXXX/pdb). You can also search by PubMed ID or citation author.",
+    },
+]
+
+
+def pdb_fetch_api_example():
+    recipe = random.choice(_RCSB_API_RECIPES)
+    ctx = random.choice(PYMOL_CONTEXTS)
+    code = recipe["code"].replace("{pdb}", ctx["pdb"])
+    answer = (
+        f"```python\n{code}```\n\n"
+        f"{recipe['note']}"
+    )
+    return _record(
+        f"How do I {recipe['intent']} using the RCSB PDB API?",
+        answer,
+    )
+
+
+# ---------------------------------------------------------------------------
+# R5 NEW: H-bond network analysis in protein structures
+# ---------------------------------------------------------------------------
+
+def hbond_structure_example():
+    ctx = random.choice(PYMOL_CONTEXTS)
+    pdb = ctx["pdb"]
+    ligand = ctx["ligand"]
+    style = random.choice(["biopython", "chimerax", "pymol"])
+    if style == "biopython":
+        answer = (
+            "```python\n"
+            "from Bio.PDB import PDBParser, HSExposureCB\n"
+            "from Bio.PDB.DSSP import DSSP\n"
+            "# Use PLIP for the most detailed H-bond analysis\n"
+            "# or use gemmi for fast contact search\n"
+            "import gemmi\n"
+            f"st = gemmi.read_structure('{pdb.lower()}.pdb')\n"
+            "ns = gemmi.NeighborSearch(st[0], st.cell, 4.0)\n"
+            "ns.populate(include_h=False)\n"
+            "# Find contacts between ligand and protein\n"
+            "hbond_candidates = []\n"
+            "for chain in st[0]:\n"
+            "    for res in chain:\n"
+            f"        if res.name == '{ligand}':\n"
+            "            for atom in res:\n"
+            "                if atom.element.name in ('N', 'O', 'S'):\n"
+            "                    for nb in ns.find_atoms(atom.pos, '\\0', radius=3.5):\n"
+            "                        cra = nb.to_cra(st[0])\n"
+            "                        if cra.atom.element.name in ('N', 'O') and cra.residue.name != res.name:\n"
+            "                            hbond_candidates.append(\n"
+            "                                (atom.name, cra.chain.name, cra.residue.name,\n"
+            "                                 str(cra.residue.seqid), cra.atom.name, round(nb.dist(), 2))\n"
+            "                            )\n"
+            "for h in hbond_candidates:\n"
+            "    print(f'Ligand {h[0]} — {h[2]}{h[3]} {h[4]} ({h[5]} Å)')\n"
+            "```\n\n"
+            f"This finds all N/O contacts within 3.5 Å between {ligand} and protein — "
+            "strong H-bond candidates. For full H-bond analysis including angles, use PLIP: "
+            f"`plip -f {pdb.lower()}.pdb -x -o plip_output/`"
+        )
+    elif style == "chimerax":
+        answer = (
+            "```\n"
+            f"# ChimeraX: H-bond analysis for {pdb}\n"
+            f"open {pdb}\n"
+            "delete solvent\n"
+            f"hbonds ::{ligand} restrict cross reveal true log true\n"
+            "```\n\n"
+            f"`hbonds` with `restrict cross` shows only ligand↔protein H-bonds. "
+            "`reveal true` displays acceptor/donor atoms. "
+            "`log true` writes distances and angles to the log."
+        )
+    else:
+        answer = (
+            "```python\n"
+            f"# PyMOL: visualise H-bonds for {pdb}/{ligand}\n"
+            f"fetch {pdb}, async=0\n"
+            "remove solvent\n"
+            f"select lig, resn {ligand}\n"
+            "select prot, polymer\n"
+            "distance hbonds, lig, prot, 3.5, mode=2\n"
+            "show sticks, lig\n"
+            "show sticks, byres (prot within 5 of lig)\n"
+            "util.cbag lig\n"
+            "center lig\n"
+            "zoom lig, 8\n"
+            "```\n\n"
+            "`distance ... mode=2` shows all heavy-atom contacts within 3.5 Å — H-bond candidates. "
+            "For angle-filtered H-bonds, use PLIP or ChimeraX `hbonds` command."
+        )
+    questions = [
+        f"Analyse the H-bond network between {ligand} and {pdb} ({ctx.get('target','protein')}).",
+        f"How do I find hydrogen bonds between the ligand and protein in {pdb}?",
+        f"Show the H-bond interactions of {ligand} in PDB structure {pdb}.",
+        f"Calculate H-bonds formed by {ligand} in {pdb} using Python.",
+    ]
+    return _record(random.choice(questions), answer)
+
+
+# ===========================================================================
+# METRIC-FIX GENERATORS
+# Target: PyExec, Code→Quote, Numerical Fidelity, Rounding
+# ===========================================================================
+
+# ---------------------------------------------------------------------------
+# PyExec fix: complete runnable RDKit scripts (no external files needed)
+# ---------------------------------------------------------------------------
+
+_PYEXEC_TASKS = [
+    {
+        "intent": "compute all Ro5 properties and print a table",
+        "code_tpl": (
+            "from rdkit import Chem\n"
+            "from rdkit.Chem import Descriptors, Lipinski, rdMolDescriptors\n"
+            "from rdkit.Chem.QED import qed\n"
+            "mol = Chem.MolFromSmiles('{smi}')\n"
+            "props = {{\n"
+            "    'MW':   round(Descriptors.MolWt(mol), 1),\n"
+            "    'logP': round(Descriptors.MolLogP(mol), 2),\n"
+            "    'HBD':  Lipinski.NumHDonors(mol),\n"
+            "    'HBA':  Lipinski.NumHAcceptors(mol),\n"
+            "    'TPSA': round(rdMolDescriptors.CalcTPSA(mol), 1),\n"
+            "    'QED':  round(qed(mol), 3),\n"
+            "}}\n"
+            "for k, v in props.items():\n"
+            "    print(f'{{k}}: {{v}}')\n"
+        ),
+        "question": "Write a complete Python script to compute and print all Ro5 properties of {smi}.",
+    },
+    {
+        "intent": "enumerate all substructure matches and print atom indices",
+        "code_tpl": (
+            "from rdkit import Chem\n"
+            "mol = Chem.MolFromSmiles('{smi}')\n"
+            "patt = Chem.MolFromSmarts('[CX3](=O)[OX2H1]')\n"
+            "matches = mol.GetSubstructMatches(patt)\n"
+            "print(f'Found {{len(matches)}} carboxylic acid group(s)')\n"
+            "for i, m in enumerate(matches):\n"
+            "    print(f'  Match {{i+1}}: atoms {{m}}')\n"
+        ),
+        "question": "Write a complete RDKit script to find all carboxylic acid groups in {smi}.",
+    },
+    {
+        "intent": "compute Morgan fingerprint and print the first 10 bit positions",
+        "code_tpl": (
+            "from rdkit import Chem\n"
+            "from rdkit.Chem import rdFingerprintGenerator\n"
+            "mol = Chem.MolFromSmiles('{smi}')\n"
+            "gen = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)\n"
+            "fp = gen.GetFingerprint(mol)\n"
+            "bits = list(fp.GetOnBits())\n"
+            "print(f'Non-zero bits: {{len(bits)}}')\n"
+            "print(f'First 10 bit positions: {{bits[:10]}}')\n"
+        ),
+        "question": "Write a complete Python script to compute the Morgan fingerprint of {smi} and print the on-bits.",
+    },
+    {
+        "intent": "generate a Murcko scaffold and compute its properties",
+        "code_tpl": (
+            "from rdkit import Chem\n"
+            "from rdkit.Chem import Descriptors\n"
+            "from rdkit.Chem.Scaffolds import MurckoScaffold\n"
+            "mol = Chem.MolFromSmiles('{smi}')\n"
+            "scaf = MurckoScaffold.GetScaffoldForMol(mol)\n"
+            "scaf_smi = Chem.MolToSmiles(scaf)\n"
+            "print(f'Scaffold: {{scaf_smi}}')\n"
+            "print(f'Scaffold MW: {{round(Descriptors.MolWt(scaf), 1)}}')\n"
+            "print(f'Scaffold HBD: {{Chem.rdMolDescriptors.CalcNumHBD(scaf)}}')\n"
+        ),
+        "question": "Write a runnable Python script to extract the Murcko scaffold of {smi} and compute its MW.",
+    },
+    {
+        "intent": "check all PAINS alerts and print results",
+        "code_tpl": (
+            "from rdkit import Chem\n"
+            "from rdkit.Chem import FilterCatalog\n"
+            "params = FilterCatalog.FilterCatalogParams()\n"
+            "params.AddCatalog(FilterCatalog.FilterCatalogParams.FilterCatalogs.PAINS)\n"
+            "catalog = FilterCatalog.FilterCatalog(params)\n"
+            "mol = Chem.MolFromSmiles('{smi}')\n"
+            "matches = list(catalog.GetMatches(mol))\n"
+            "if matches:\n"
+            "    for e in matches:\n"
+            "        print(f'ALERT: {{e.GetDescription()}}')\n"
+            "else:\n"
+            "    print('No PAINS alerts detected')\n"
+        ),
+        "question": "Write a complete Python script to check {smi} for PAINS alerts using RDKit FilterCatalog.",
+    },
+    {
+        "intent": "compute SA score and QED and compare",
+        "code_tpl": (
+            "import sys, os\n"
+            "from rdkit.Chem import RDConfig\n"
+            "sys.path.append(os.path.join(RDConfig.RDContribDir, 'SA_Score'))\n"
+            "import sascorer\n"
+            "from rdkit import Chem\n"
+            "from rdkit.Chem.QED import qed\n"
+            "mol = Chem.MolFromSmiles('{smi}')\n"
+            "sa = round(sascorer.calculateScore(mol), 2)\n"
+            "qed_score = round(qed(mol), 3)\n"
+            "print(f'SA score: {{sa}} (1=easy, 10=hard)')\n"
+            "print(f'QED: {{qed_score}} (0=poor, 1=ideal drug-like)')\n"
+        ),
+        "question": "Write a complete Python script to compute and compare the SA score and QED of {smi}.",
+    },
+]
+
+
+def pyexec_drill_example(smiles: str):
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return None
+    task = random.choice(_PYEXEC_TASKS)
+    code = task["code_tpl"].format(smi=smiles)
+    # Verify the code actually runs (only for RDKIT tasks, skip SA score which needs contrib)
+    if "sascorer" not in code:
+        try:
+            ns = {}
+            exec(compile(code, "<string>", "exec"), ns)  # noqa: S102
+        except Exception:
+            return None  # reject if code doesn't run
+    answer = f"```python\n{code}```\n\nThis script runs end-to-end without external files."
+    return _record(task["question"].format(smi=smiles), answer)
+
+
+# ---------------------------------------------------------------------------
+# Code→Quote fix: explicit compute-then-quote with output shown verbatim
+# ---------------------------------------------------------------------------
+
+def code_then_quote_v2_example(smiles: str):
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return None
+    mw   = round(Descriptors.MolWt(mol), 1)
+    logp = round(Descriptors.MolLogP(mol), 2)
+    hbd  = Lipinski.NumHDonors(mol)
+    hba  = Lipinski.NumHAcceptors(mol)
+    tpsa = round(rdMolDescriptors.CalcTPSA(mol), 1)
+    try:
+        score = round(_qed(mol), 3)
+    except Exception:
+        score = None
+    # Format as explicit: "Running the code above gives: MW: X, ..."
+    output_block = (
+        f"MW: {mw}\n"
+        f"logP: {logp}\n"
+        f"HBD: {hbd}\n"
+        f"HBA: {hba}\n"
+        f"TPSA: {tpsa}\n"
+        + (f"QED: {score}\n" if score else "")
+    )
+    answer = (
+        "```python\n"
+        "from rdkit import Chem\n"
+        "from rdkit.Chem import Descriptors, Lipinski, rdMolDescriptors\n"
+        "from rdkit.Chem.QED import qed\n"
+        f"mol = Chem.MolFromSmiles('{smiles}')\n"
+        "print('MW:',   round(Descriptors.MolWt(mol), 1))\n"
+        "print('logP:', round(Descriptors.MolLogP(mol), 2))\n"
+        "print('HBD:',  Lipinski.NumHDonors(mol))\n"
+        "print('HBA:',  Lipinski.NumHAcceptors(mol))\n"
+        "print('TPSA:', round(rdMolDescriptors.CalcTPSA(mol), 1))\n"
+        "print('QED:',  round(qed(mol), 3))\n"
+        "```\n\n"
+        f"Running this code gives:\n\n"
+        f"```\n{output_block}```\n\n"
+        f"Quoting directly from the output: MW = {mw}, logP = {logp}, "
+        f"HBD = {hbd}, HBA = {hba}, TPSA = {tpsa} Å²"
+        + (f", QED = {score}." if score else ".")
+    )
+    questions = [
+        f"Compute and quote all physicochemical properties of {smiles}.",
+        f"Run RDKit on {smiles} and quote the exact output values.",
+        f"What are the exact MW, logP, HBD, HBA, TPSA and QED of {smiles}? Show your code and quote the output.",
+        f"Calculate all key properties of {smiles} using RDKit and report the values from the output.",
+    ]
+    return _record(random.choice(questions), answer)
+
+
+# ---------------------------------------------------------------------------
+# Rounding fix: explicit rounding conventions with all properties
+# ---------------------------------------------------------------------------
+
+def rounding_explicit_example(smiles: str):
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return None
+    mw   = round(Descriptors.MolWt(mol), 1)
+    logp = round(Descriptors.MolLogP(mol), 2)
+    tpsa = round(rdMolDescriptors.CalcTPSA(mol), 1)
+    try:
+        score = round(_qed(mol), 3)
+    except Exception:
+        score = None
+    rot  = rdMolDescriptors.CalcNumRotatableBonds(mol)
+    # Deliberately show wrong and right rounding to drive the lesson home
+    mw_wrong   = int(mw)       # 0 d.p. — wrong
+    logp_wrong = round(logp, 0)  # 0 d.p. — wrong
+    answer = (
+        "```python\n"
+        "from rdkit import Chem\n"
+        "from rdkit.Chem import Descriptors, rdMolDescriptors\n"
+        "from rdkit.Chem.QED import qed\n"
+        f"mol = Chem.MolFromSmiles('{smiles}')\n"
+        "# Correct rounding conventions\n"
+        "print('MW:',   round(Descriptors.MolWt(mol), 1))      # 1 decimal place\n"
+        "print('logP:', round(Descriptors.MolLogP(mol), 2))    # 2 decimal places\n"
+        "print('TPSA:', round(rdMolDescriptors.CalcTPSA(mol), 1))  # 1 decimal place\n"
+        "print('QED:',  round(qed(mol), 3))                    # 3 decimal places\n"
+        "```\n\n"
+        f"**Correct values:** MW = {mw}, logP = {logp}, TPSA = {tpsa} Å²"
+        + (f", QED = {score}." if score else ".")
+        + "\n\n"
+        "**Rounding conventions:**\n"
+        "- MW: **1 decimal place** (e.g., 180.2, not 180 or 180.16)\n"
+        "- logP: **2 decimal places** (e.g., 1.35, not 1 or 1.3)\n"
+        "- TPSA: **1 decimal place** (e.g., 63.6, not 64)\n"
+        "- QED: **3 decimal places** (e.g., 0.552, not 0.55 or 1)\n"
+        "- HBD/HBA: **integers** (no decimal)\n\n"
+        f"❌ MW = {mw_wrong} (wrong — no decimal)  \n"
+        f"✅ MW = {mw} (correct — 1 d.p.)"
+    )
+    questions = [
+        f"What are the correct rounded values of MW, logP, TPSA and QED for {smiles}?",
+        f"Compute MW, logP, TPSA and QED for {smiles} with the correct number of decimal places.",
+        f"What rounding should be applied to RDKit properties? Show for {smiles}.",
+        f"Give me MW, logP, TPSA and QED of {smiles} — use the standard ChemSage rounding conventions.",
+    ]
+    return _record(random.choice(questions), answer)
+
+
+# ---------------------------------------------------------------------------
+# Fidelity fix: multi-property compute with every value explicitly quoted
+# ---------------------------------------------------------------------------
+
+def fidelity_multistep_example(smiles: str):
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return None
+    mw   = round(Descriptors.MolWt(mol), 1)
+    logp = round(Descriptors.MolLogP(mol), 2)
+    hbd  = Lipinski.NumHDonors(mol)
+    hba  = Lipinski.NumHAcceptors(mol)
+    tpsa = round(rdMolDescriptors.CalcTPSA(mol), 1)
+    rot  = rdMolDescriptors.CalcNumRotatableBonds(mol)
+    try:
+        score = round(_qed(mol), 3)
+    except Exception:
+        score = None
+    passes = (mw < 500) and (logp < 5) and (hbd <= 5) and (hba <= 10)
+    verdict = "PASSES Lipinski Ro5" if passes else "FAILS Lipinski Ro5"
+    answer = (
+        "I will compute each property step by step from the SMILES, then state the exact values.\n\n"
+        "```python\n"
+        "from rdkit import Chem\n"
+        "from rdkit.Chem import Descriptors, Lipinski, rdMolDescriptors\n"
+        "from rdkit.Chem.QED import qed\n"
+        f"mol = Chem.MolFromSmiles('{smiles}')\n"
+        "mw   = round(Descriptors.MolWt(mol), 1)\n"
+        "logp = round(Descriptors.MolLogP(mol), 2)\n"
+        "hbd  = Lipinski.NumHDonors(mol)\n"
+        "hba  = Lipinski.NumHAcceptors(mol)\n"
+        "tpsa = round(rdMolDescriptors.CalcTPSA(mol), 1)\n"
+        "rot  = rdMolDescriptors.CalcNumRotatableBonds(mol)\n"
+        "qed_score = round(qed(mol), 3)\n"
+        "print(mw, logp, hbd, hba, tpsa, rot, qed_score)\n"
+        "```\n\n"
+        f"Output: `{mw} {logp} {hbd} {hba} {tpsa} {rot}" + (f" {score}`" if score else "`") + "\n\n"
+        f"Property summary:\n"
+        f"- MW = **{mw}** Da\n"
+        f"- logP = **{logp}**\n"
+        f"- HBD = **{hbd}**, HBA = **{hba}**\n"
+        f"- TPSA = **{tpsa}** Å²\n"
+        f"- Rotatable bonds = **{rot}**\n"
+        + (f"- QED = **{score}**\n" if score else "")
+        + f"\n**{verdict}** ({'✅' if passes else '❌'})."
+    )
+    questions = [
+        f"Step through the RDKit calculation of MW, logP, HBD, HBA, TPSA and QED for {smiles}.",
+        f"Compute each physicochemical property of {smiles} separately and state the exact values.",
+        f"What are MW, logP, HBD, HBA, TPSA, rotatable bonds and QED for {smiles}? Show each computation.",
+        f"Break down the full property profile of {smiles} step by step.",
+    ]
+    return _record(random.choice(questions), answer)
+
+
+# ===========================================================================
+# CATEGORY 1: Medicinal Chemistry Reasoning
+# ===========================================================================
+
+# ---------------------------------------------------------------------------
+# hERG liability assessment
+# ---------------------------------------------------------------------------
+
+def herg_liability_example(smiles: str):
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return None
+    mw   = round(Descriptors.MolWt(mol), 1)
+    logp = round(Descriptors.MolLogP(mol), 2)
+    hbd  = Lipinski.NumHDonors(mol)
+    arom = rdMolDescriptors.CalcNumAromaticRings(mol)
+    # Simple hERG risk heuristic: basic N + logP > 3 + aromatic rings
+    has_basic_n = mol.HasSubstructMatch(Chem.MolFromSmarts("[NX3;H0,H1;!$(NC=O)]"))
+    risk_factors = []
+    if logp > 3:
+        risk_factors.append(f"logP {logp} > 3")
+    if has_basic_n:
+        risk_factors.append("basic nitrogen present")
+    if arom >= 2:
+        risk_factors.append(f"{arom} aromatic rings")
+    if mw > 400:
+        risk_factors.append(f"MW {mw} > 400")
+    risk = "HIGH" if len(risk_factors) >= 3 else "MODERATE" if len(risk_factors) >= 2 else "LOW"
+    answer = (
+        "hERG (Kv11.1) is the major cardiac ion channel associated with drug-induced QT prolongation "
+        "and Torsades de Pointes arrhythmia.\n\n"
+        "```python\n"
+        "from rdkit import Chem\n"
+        "from rdkit.Chem import Descriptors, Lipinski, rdMolDescriptors\n"
+        f"mol = Chem.MolFromSmiles('{smiles}')\n"
+        "logp = round(Descriptors.MolLogP(mol), 2)\n"
+        "arom = rdMolDescriptors.CalcNumAromaticRings(mol)\n"
+        "basic_n = mol.HasSubstructMatch(Chem.MolFromSmarts('[NX3;H0,H1;!$(NC=O)]'))\n"
+        "mw = round(Descriptors.MolWt(mol), 1)\n"
+        "print(f'logP: {logp}, Arom rings: {arom}, Basic N: {basic_n}, MW: {mw}')\n"
+        "```\n\n"
+        f"**hERG risk: {risk}**\n\n"
+        "Risk factors flagged:\n"
+        + ("\n".join(f"- {r}" for r in risk_factors) if risk_factors else "- None")
+        + "\n\n"
+        "**Key hERG liability rules:**\n"
+        "- logP > 3 correlates strongly with hERG binding\n"
+        "- Basic nitrogen (pKa > 7) at the correct distance from aromatic rings is a pharmacophore\n"
+        "- ≥ 2 aromatic rings provide a flat lipophilic surface matching the hERG channel cavity\n"
+        "- Mitigation: reduce logP, remove basic nitrogen, add polar groups, reduce ring count"
+    )
+    questions = [
+        f"Assess the hERG liability of {smiles}.",
+        f"Does {smiles} have hERG channel liability risk?",
+        f"Evaluate {smiles} for cardiac QT prolongation risk (hERG).",
+        f"Check {smiles} for hERG-related structural alerts.",
+    ]
+    return _record(random.choice(questions), answer)
+
+
+# ---------------------------------------------------------------------------
+# Selectivity / kinome off-target discussion
+# ---------------------------------------------------------------------------
+
+_SELECTIVITY_EXAMPLES = [
+    {
+        "target": "EGFR (erbB1)",
+        "family": "receptor tyrosine kinase",
+        "pharmacophore": "anilinoquinazoline or anilinopyrimidine hinge binder",
+        "selectivity_risks": ["erbB2 (HER2)", "erbB4", "VEGFR2 (KDR)", "Src"],
+        "strategy": "exploit the Thr790 gatekeeper (→ Cys in erbB2) with bulky C-4 substituents; "
+                    "add non-conserved hydrophobic contacts in the back pocket",
+        "example_pdb": "1IEP",
+    },
+    {
+        "target": "CDK2",
+        "family": "serine/threonine kinase",
+        "pharmacophore": "purine or aminopyrimidine hinge binder + hydrophobic DFG-out pocket",
+        "selectivity_risks": ["CDK1", "CDK4", "CDK6", "CDK9"],
+        "strategy": "exploit the large hydrophobic pocket adjacent to Phe80; "
+                    "CDK4/6 have a larger gatekeeper (Phe vs Phe vs Met in CDK2)",
+        "example_pdb": "1PXO",
+    },
+    {
+        "target": "PI3Kα",
+        "family": "PI3K lipid kinase",
+        "pharmacophore": "morpholine O as hinge H-bond acceptor; central core fits ATP binding site",
+        "selectivity_risks": ["PI3Kβ", "PI3Kδ", "PI3Kγ", "mTOR", "VPS34"],
+        "strategy": "Ile800/Ile932 form a tighter pocket in α vs δ; "
+                    "bulky substituents at C-2 of the morpholine confer α-selectivity",
+        "example_pdb": "2RD0",
+    },
+]
+
+
+def selectivity_profile_example(smiles: str):
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return None
+    ex = random.choice(_SELECTIVITY_EXAMPLES)
+    answer = (
+        f"**Kinase selectivity strategy for {ex['target']} ({ex['family']})**\n\n"
+        f"**Pharmacophore:** {ex['pharmacophore']}\n\n"
+        f"**Key off-target risks:** {', '.join(ex['selectivity_risks'])}\n\n"
+        f"**Selectivity strategy:** {ex['strategy']}\n\n"
+        "```python\n"
+        "# Screen structural analogues against the target pharmacophore\n"
+        "from rdkit import Chem\n"
+        "from rdkit.Chem import rdFingerprintGenerator, DataStructs\n"
+        f"query = Chem.MolFromSmiles('{smiles}')\n"
+        "gen = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)\n"
+        "fp_q = gen.GetFingerprint(query)\n"
+        "# Compare Tanimoto similarity to known selective inhibitors\n"
+        "# (load from your compound collection or ChEMBL)\n"
+        "```\n\n"
+        f"**Reference structure:** PDB {ex['example_pdb']} shows the binding mode. "
+        "Use PyMOL `align` to compare your compound's docked pose to the co-crystal ligand."
+    )
+    questions = [
+        f"How do I design a selective inhibitor of {ex['target']}? Use {smiles} as the starting point.",
+        f"What are the selectivity challenges for {ex['target']} inhibitors? Evaluate {smiles}.",
+        f"Discuss the kinome selectivity profile for a {ex['target']} inhibitor like {smiles}.",
+        f"What off-targets should I screen {smiles} against if targeting {ex['target']}?",
+    ]
+    return _record(random.choice(questions), answer)
+
+
+# ---------------------------------------------------------------------------
+# Prodrug and BCS classification
+# ---------------------------------------------------------------------------
+
+_BCS_CLASSES = [
+    {
+        "class": "I",
+        "solubility": "high",
+        "permeability": "high",
+        "absorption": "excellent oral bioavailability; absorption rate-limited by gastric emptying",
+        "examples": "metoprolol, verapamil, propranolol",
+        "strategy": "immediate release formulation; no special bioavailability concerns",
+    },
+    {
+        "class": "II",
+        "solubility": "low",
+        "permeability": "high",
+        "absorption": "solubility-limited absorption; highly variable bioavailability",
+        "examples": "ibuprofen, carbamazepine, felodipine",
+        "strategy": "salt formation, amorphous solid dispersions, nanosizing, lipid-based formulations",
+    },
+    {
+        "class": "III",
+        "solubility": "high",
+        "permeability": "low",
+        "absorption": "permeability-limited; often P-gp substrate",
+        "examples": "cimetidine, acyclovir, ranitidine",
+        "strategy": "prodrug strategies (lipophilic ester prodrug), P-gp inhibitors, permeation enhancers",
+    },
+    {
+        "class": "IV",
+        "solubility": "low",
+        "permeability": "low",
+        "absorption": "poor oral bioavailability; very challenging",
+        "examples": "ritonavir (early form), cyclosporin A",
+        "strategy": "lipid-based drug delivery (SMEDDS), cyclodextrin complexation, "
+                    "or IV/parenteral route; consider fundamental redesign",
+    },
+]
+
+
+def prodrug_bcs_example(smiles: str):
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return None
+    logp = round(Descriptors.MolLogP(mol), 2)
+    tpsa = round(rdMolDescriptors.CalcTPSA(mol), 1)
+    # Simple BCS class prediction heuristic
+    high_solub = logp < 2 or tpsa > 90  # rough proxy
+    high_perm  = logp > 0 and tpsa < 130 and Lipinski.NumHDonors(mol) <= 3
+    if high_solub and high_perm:
+        cls = _BCS_CLASSES[0]
+    elif not high_solub and high_perm:
+        cls = _BCS_CLASSES[1]
+    elif high_solub and not high_perm:
+        cls = _BCS_CLASSES[2]
+    else:
+        cls = _BCS_CLASSES[3]
+    answer = (
+        "```python\n"
+        "from rdkit import Chem\n"
+        "from rdkit.Chem import Descriptors, Lipinski, rdMolDescriptors\n"
+        f"mol = Chem.MolFromSmiles('{smiles}')\n"
+        "logp = round(Descriptors.MolLogP(mol), 2)\n"
+        "tpsa = round(rdMolDescriptors.CalcTPSA(mol), 1)\n"
+        "hbd  = Lipinski.NumHDonors(mol)\n"
+        "print(f'logP={logp}, TPSA={tpsa}, HBD={hbd}')\n"
+        "# BCS class prediction heuristic:\n"
+        "# High solubility proxy: logP < 2 or TPSA > 90\n"
+        "# High permeability proxy: logP > 0 and TPSA < 130 and HBD <= 3\n"
+        "```\n\n"
+        f"Predicted **BCS Class {cls['class']}** (solubility: {cls['solubility']}, "
+        f"permeability: {cls['permeability']}).\n\n"
+        f"**Absorption:** {cls['absorption']}\n\n"
+        f"**Representative drugs:** {cls['examples']}\n\n"
+        f"**Formulation strategy:** {cls['strategy']}"
+    )
+    questions = [
+        f"Classify {smiles} by BCS class and suggest a formulation strategy.",
+        f"What BCS class is {smiles} likely to fall into? What are the absorption implications?",
+        f"Discuss the oral bioavailability and BCS classification of {smiles}.",
+        f"Would {smiles} benefit from a prodrug strategy? Assess BCS class first.",
+    ]
+    return _record(random.choice(questions), answer)
+
+
+# ---------------------------------------------------------------------------
+# SAR delta table (matched molecular pair)
+# ---------------------------------------------------------------------------
+
+def sar_delta_example(smi_a: str, smi_b: str):
+    mol_a = Chem.MolFromSmiles(smi_a)
+    mol_b = Chem.MolFromSmiles(smi_b)
+    if mol_a is None or mol_b is None:
+        return None
+    mw_a   = round(Descriptors.MolWt(mol_a), 1)
+    mw_b   = round(Descriptors.MolWt(mol_b), 1)
+    logp_a = round(Descriptors.MolLogP(mol_a), 2)
+    logp_b = round(Descriptors.MolLogP(mol_b), 2)
+    tpsa_a = round(rdMolDescriptors.CalcTPSA(mol_a), 1)
+    tpsa_b = round(rdMolDescriptors.CalcTPSA(mol_b), 1)
+    try:
+        qed_a  = round(_qed(mol_a), 3)
+        qed_b  = round(_qed(mol_b), 3)
+    except Exception:
+        qed_a = qed_b = None
+    dmw  = round(mw_b - mw_a, 1)
+    dlogp= round(logp_b - logp_a, 2)
+    dtpsa= round(tpsa_b - tpsa_a, 1)
+    arrow = lambda d: ("↑" if d > 0 else "↓" if d < 0 else "→")
+    answer = (
+        "```python\n"
+        "from rdkit import Chem\n"
+        "from rdkit.Chem import Descriptors, rdMolDescriptors\n"
+        "from rdkit.Chem.QED import qed\n"
+        f"mol_a = Chem.MolFromSmiles('{smi_a}')\n"
+        f"mol_b = Chem.MolFromSmiles('{smi_b}')\n"
+        "for label, mol in [('A', mol_a), ('B', mol_b)]:\n"
+        "    mw   = round(Descriptors.MolWt(mol), 1)\n"
+        "    logp = round(Descriptors.MolLogP(mol), 2)\n"
+        "    tpsa = round(rdMolDescriptors.CalcTPSA(mol), 1)\n"
+        "    print(f'{label}: MW={mw}, logP={logp}, TPSA={tpsa}')\n"
+        "```\n\n"
+        "**SAR delta table (A → B):**\n\n"
+        "| Property | A | B | Δ | Direction |\n"
+        "|---|---|---|---|---|\n"
+        f"| MW | {mw_a} | {mw_b} | {dmw:+.1f} | {arrow(dmw)} |\n"
+        f"| logP | {logp_a} | {logp_b} | {dlogp:+.2f} | {arrow(dlogp)} |\n"
+        f"| TPSA | {tpsa_a} | {tpsa_b} | {dtpsa:+.1f} | {arrow(dtpsa)} |\n"
+        + (f"| QED | {qed_a} | {qed_b} | {round(qed_b-qed_a,3):+.3f} | {arrow(qed_b-qed_a)} |\n" if qed_a and qed_b else "")
+        + "\n"
+        "**SAR interpretation:** The A → B transformation "
+        + ("increases lipophilicity" if dlogp > 0.3 else "reduces lipophilicity" if dlogp < -0.3 else "has little effect on lipophilicity")
+        + (f" and {'increases' if dtpsa > 5 else 'reduces' if dtpsa < -5 else 'barely changes'} polarity.")
+    )
+    questions = [
+        f"Build an SAR delta table for compounds A and B:\nA: {smi_a}\nB: {smi_b}",
+        f"Compare the physicochemical properties of {smi_a} and {smi_b} as an MMP delta table.",
+        f"What is the effect of the structural change from {smi_a} to {smi_b} on key properties?",
+        f"Compute the SAR delta (ΔlogP, ΔMW, ΔTPSA, ΔQED) between:\nA: {smi_a}\nB: {smi_b}",
+    ]
+    return _record(random.choice(questions), answer)
+
+
+# ===========================================================================
+# CATEGORY 2: Structural Biology Expansion
+# ===========================================================================
+
+# ---------------------------------------------------------------------------
+# MDAnalysis trajectory analysis
+# ---------------------------------------------------------------------------
+
+_MDANALYSIS_RECIPES = [
+    {
+        "intent": "compute the Cα RMSD of a protein over an MD trajectory",
+        "code": (
+            "import MDAnalysis as mda\n"
+            "from MDAnalysis.analysis import rms\n"
+            "u = mda.Universe('topology.psf', 'trajectory.dcd')\n"
+            "ref = mda.Universe('reference.pdb')\n"
+            "ca = u.select_atoms('protein and name CA')\n"
+            "R = rms.RMSD(ca, ref.select_atoms('protein and name CA'))\n"
+            "R.run()\n"
+            "import numpy as np\n"
+            "print(f'Mean RMSD: {np.mean(R.rmsd[:,2]):.2f} Å')\n"
+            "print(f'Max RMSD:  {np.max(R.rmsd[:,2]):.2f} Å')\n"
+        ),
+        "note": "RMSD[:,2] is the RMSD column; columns are [frame, time, RMSD]. "
+                "Large RMSD (> 3 Å) sustained over the trajectory indicates conformational change.",
+    },
+    {
+        "intent": "compute per-residue RMSF to identify flexible regions",
+        "code": (
+            "import MDAnalysis as mda\n"
+            "from MDAnalysis.analysis import rms\n"
+            "u = mda.Universe('topology.psf', 'trajectory.dcd')\n"
+            "ca = u.select_atoms('protein and name CA')\n"
+            "R = rms.RMSF(ca).run()\n"
+            "# Print residues with RMSF > 2 Å (flexible)\n"
+            "for atom, rmsf in zip(ca, R.rmsf):\n"
+            "    if rmsf > 2.0:\n"
+            "        print(f'Residue {atom.resname}{atom.resid} chain {atom.segid}: RMSF = {rmsf:.2f} Å')\n"
+        ),
+        "note": "RMSF measures per-residue flexibility. High RMSF (> 2 Å) indicates loops or "
+                "termini. Binding-site residues should have low RMSF for reliable docking.",
+    },
+    {
+        "intent": "calculate the distance between two residues over time",
+        "code": (
+            "import MDAnalysis as mda\n"
+            "import numpy as np\n"
+            "u = mda.Universe('topology.psf', 'trajectory.dcd')\n"
+            "# Distance between Asp102 Cγ and His57 Nε2 (catalytic dyad)\n"
+            "asp = u.select_atoms('resid 102 and name CG')\n"
+            "his = u.select_atoms('resid 57 and name NE2')\n"
+            "distances = []\n"
+            "for ts in u.trajectory:\n"
+            "    d = np.linalg.norm(asp.positions[0] - his.positions[0])\n"
+            "    distances.append(d)\n"
+            "print(f'Mean distance: {np.mean(distances):.2f} Å')\n"
+            "print(f'H-bond occupancy (<3.5 Å): {np.mean(np.array(distances) < 3.5):.1%}')\n"
+        ),
+        "note": "Distance analysis tracks catalytic residue contacts and H-bond occupancies. "
+                "H-bond criterion: distance < 3.5 Å (heavy atom) and angle > 150° ideally.",
+    },
+    {
+        "intent": "measure ligand binding site contacts over an MD trajectory",
+        "code": (
+            "import MDAnalysis as mda\n"
+            "import numpy as np\n"
+            "u = mda.Universe('complex.prmtop', 'trajectory.nc')\n"
+            "ligand = u.select_atoms('resname LIG')\n"
+            "protein = u.select_atoms('protein')\n"
+            "contact_counts = {{}}\n"
+            "for ts in u.trajectory:\n"
+            "    nearby = protein.select_atoms(\n"
+            "        f'around 4.0 resname LIG', updating=True\n"
+            "    )\n"
+            "    for res in nearby.residues:\n"
+            "        key = f'{res.resname}{res.resid}'\n"
+            "        contact_counts[key] = contact_counts.get(key, 0) + 1\n"
+            "n_frames = len(u.trajectory)\n"
+            "for res, count in sorted(contact_counts.items(), key=lambda x: -x[1])[:10]:\n"
+            "    print(f'{res}: {count/n_frames:.1%} occupancy')\n"
+        ),
+        "note": "Residue contact occupancy across the trajectory reveals which contacts are "
+                "persistent (> 80%) vs transient. Focus SAR on persistent contacts.",
+    },
+]
+
+
+def mdanalysis_example():
+    recipe = random.choice(_MDANALYSIS_RECIPES)
+    answer = (
+        f"```python\n{recipe['code']}```\n\n"
+        f"{recipe['note']}\n\n"
+        "MDAnalysis supports GROMACS (.gro/.xtc), AMBER (.prmtop/.nc), CHARMM (.psf/.dcd), "
+        "and NAMD formats natively."
+    )
+    return _record(
+        f"How do I {recipe['intent']} using MDAnalysis?",
+        answer,
+    )
+
+
+# ---------------------------------------------------------------------------
+# DSSP secondary structure assignment
+# ---------------------------------------------------------------------------
+
+_DSSP_QUESTIONS = [
+    {
+        "q": "How do I assign secondary structure to residues in a PDB file?",
+        "a": (
+            "```python\n"
+            "# Method 1: Biopython DSSP wrapper (requires DSSP binary)\n"
+            "from Bio.PDB import PDBParser\n"
+            "from Bio.PDB.DSSP import DSSP\n"
+            "parser = PDBParser(QUIET=True)\n"
+            "structure = parser.get_structure('prot', '1hsg.pdb')\n"
+            "model = structure[0]\n"
+            "dssp = DSSP(model, '1hsg.pdb', dssp='mkdssp')\n"
+            "for key in dssp:\n"
+            "    chain, (_, resnum, _) = key\n"
+            "    ss = dssp[key][2]  # H=helix, E=strand, C=coil\n"
+            "    res = dssp[key][1]\n"
+            "    print(f'{chain} {res}{resnum}: {ss}')\n"
+            "```\n\n"
+            "```python\n"
+            "# Method 2: mdtraj (no external binary needed)\n"
+            "import mdtraj as md\n"
+            "t = md.load('1hsg.pdb')\n"
+            "ss = md.compute_dssp(t, simplified=False)\n"
+            "# Returns array shape (n_frames, n_residues) with DSSP codes\n"
+            "from collections import Counter\n"
+            "counts = Counter(ss[0])\n"
+            "print('Helix:', counts['H'], 'Strand:', counts['E'], 'Coil:', counts['C'])\n"
+            "```\n\n"
+            "DSSP codes: **H**=α-helix, **G**=3₁₀-helix, **I**=π-helix, **E**=β-strand, "
+            "**B**=bridge, **T**=turn, **S**=bend, **C**=coil. "
+            "Simplified DSSP collapses to H/E/C."
+        ),
+    },
+    {
+        "q": "What is the DSSP algorithm and what secondary structures does it detect?",
+        "a": (
+            "DSSP (Dictionary of Secondary Structure of Proteins, Kabsch & Sander 1983) assigns "
+            "secondary structure by computing hydrogen bond energies using partial atomic charges.\n\n"
+            "**Algorithm:** For each residue pair (i, j), DSSP computes:\n"
+            "> E = 0.084 × (1/r_ON + 1/r_CH − 1/r_OH − 1/r_CN) × 332 kcal/mol\n"
+            "If E < −0.5 kcal/mol, an H-bond is assigned.\n\n"
+            "**Secondary structure patterns detected:**\n"
+            "| Code | Structure | H-bond pattern |\n"
+            "|---|---|---|\n"
+            "| H | α-helix | i→i+4 |\n"
+            "| G | 3₁₀-helix | i→i+3 |\n"
+            "| I | π-helix | i→i+5 |\n"
+            "| E | β-strand | between strands |\n"
+            "| B | isolated β-bridge | single inter-strand |\n"
+            "| T | turn | i→i+3 or i+4 |\n"
+            "| S | bend | high curvature |\n"
+            "| C | coil | none of above |\n\n"
+            "Runs are simplified in most tools: H+G+I → helix, E+B → strand, rest → coil."
+        ),
+    },
+]
+
+
+def dssp_example():
+    ex = random.choice(_DSSP_QUESTIONS)
+    return _record(ex["q"], ex["a"])
+
+
+# ---------------------------------------------------------------------------
+# Protein-protein interface analysis
+# ---------------------------------------------------------------------------
+
+_PPI_EXAMPLES = [
+    {
+        "intent": "calculate the buried surface area at a protein-protein interface",
+        "pdb": "3SGB",
+        "partners": "chains A and B",
+        "note": (
+            "BSA = (SASA_A + SASA_B − SASA_complex) / 2. "
+            "Typical protein-protein interfaces bury 1,500–3,000 Å². "
+            "Hot-spot residues contribute > 50% of binding energy despite covering < 10% of BSA."
+        ),
+        "code": (
+            "from Bio.PDB import PDBParser\n"
+            "from Bio.PDB.SASA import ShrakeRupley\n"
+            "parser = PDBParser(QUIET=True)\n"
+            "structure = parser.get_structure('ppi', '3sgb.pdb')\n"
+            "sr = ShrakeRupley()\n"
+            "# SASA of the complex\n"
+            "sr.compute(structure, level='S')\n"
+            "sasa_complex = structure.sasa\n"
+            "# SASA of chain A alone\n"
+            "chainA = structure[0]['A']\n"
+            "sr.compute(chainA, level='C')\n"
+            "sasa_A = chainA.sasa\n"
+            "# SASA of chain B alone\n"
+            "chainB = structure[0]['B']\n"
+            "sr.compute(chainB, level='C')\n"
+            "sasa_B = chainB.sasa\n"
+            "bsa = (sasa_A + sasa_B - sasa_complex) / 2\n"
+            "print(f'BSA: {bsa:.0f} Å²')\n"
+        ),
+    },
+    {
+        "intent": "find hot-spot residues at a protein-protein interface",
+        "pdb": "1BRS",
+        "partners": "barnase (chain A) and barstar (chain D)",
+        "note": (
+            "Hot spots are residues at the interface where Ala-scanning shows ΔΔG > 2 kcal/mol. "
+            "They cluster at the centre of the interface (O-ring theory). "
+            "Arg, Trp, and Tyr appear disproportionately as hot spots."
+        ),
+        "code": (
+            "import gemmi\n"
+            "st = gemmi.read_structure('1brs.pdb')\n"
+            "ns = gemmi.NeighborSearch(st[0], st.cell, 5.0)\n"
+            "ns.populate()\n"
+            "interface_res = set()\n"
+            "for chain in st[0]:\n"
+            "    if chain.name == 'A':  # barnase\n"
+            "        for res in chain:\n"
+            "            for atom in res:\n"
+            "                for nb in ns.find_atoms(atom.pos, '\\0', radius=5.0):\n"
+            "                    cra = nb.to_cra(st[0])\n"
+            "                    if cra.chain.name == 'D':  # barstar\n"
+            "                        interface_res.add((chain.name, res.name, str(res.seqid)))\n"
+            "print('Interface residues (barnase side):')\n"
+            "for r in sorted(interface_res):\n"
+            "    print(f'  {r[0]}:{r[1]}{r[2]}')\n"
+        ),
+    },
+]
+
+
+def ppi_interface_example():
+    ex = random.choice(_PPI_EXAMPLES)
+    answer = (
+        f"```python\n{ex['code']}```\n\n"
+        f"{ex['note']}"
+    )
+    return _record(
+        f"How do I {ex['intent']} in PDB {ex['pdb']} ({ex['partners']}) using Python?",
+        answer,
+    )
+
+
+# ---------------------------------------------------------------------------
+# UniProt REST API
+# ---------------------------------------------------------------------------
+
+_UNIPROT_RECIPES = [
+    {
+        "intent": "fetch protein sequence and function annotation by UniProt ID",
+        "code": (
+            "import requests\n"
+            "uniprot_id = 'P00533'  # EGFR\n"
+            "url = f'https://rest.uniprot.org/uniprotkb/{uniprot_id}.json'\n"
+            "data = requests.get(url).json()\n"
+            "print('Gene:',    data['genes'][0]['geneName']['value'])\n"
+            "print('Organism:', data['organism']['scientificName'])\n"
+            "print('Length:',  data['sequence']['length'])\n"
+            "# Function comment\n"
+            "for comment in data.get('comments', []):\n"
+            "    if comment['commentType'] == 'FUNCTION':\n"
+            "        print('Function:', comment['texts'][0]['value'][:200])\n"
+            "        break\n"
+        ),
+        "note": "UniProt REST API v2. Use `.fasta` suffix for the FASTA sequence, "
+                "`.txt` for flat-file format.",
+    },
+    {
+        "intent": "search UniProt for all human kinases and get their PDB cross-references",
+        "code": (
+            "import requests\n"
+            "query = 'organism_id:9606 AND keyword:KW-0418'  # Human + Kinase keyword\n"
+            "url = 'https://rest.uniprot.org/uniprotkb/search'\n"
+            "params = {'query': query, 'format': 'json', 'fields': 'accession,id,xref_pdb', 'size': 10}\n"
+            "r = requests.get(url, params=params)\n"
+            "for entry in r.json().get('results', []):\n"
+            "    acc = entry['primaryAccession']\n"
+            "    pdbs = [x['id'] for x in entry.get('uniProtKBCrossReferences', [])\n"
+            "            if x['database'] == 'PDB'][:3]\n"
+            "    print(f'{acc}: PDB structures = {pdbs}')\n"
+        ),
+        "note": "UniProt keyword KW-0418 = Kinase. KW-0597 = Phosphoprotein. "
+                "Use `fields` to request only needed columns — much faster than full records.",
+    },
+    {
+        "intent": "map a UniProt ID to its PDB structures and download them",
+        "code": (
+            "import requests\n"
+            "uniprot_id = 'P00533'  # EGFR\n"
+            "# Step 1: get PDB cross-references from UniProt\n"
+            "url = f'https://rest.uniprot.org/uniprotkb/{uniprot_id}.json'\n"
+            "data = requests.get(url).json()\n"
+            "pdb_ids = [\n"
+            "    x['id'] for x in data.get('uniProtKBCrossReferences', [])\n"
+            "    if x['database'] == 'PDB'\n"
+            "]\n"
+            "print(f'PDB structures for {uniprot_id}:', pdb_ids[:5])\n"
+            "# Step 2: download the first structure\n"
+            "if pdb_ids:\n"
+            "    pdb = pdb_ids[0]\n"
+            "    pdb_url = f'https://files.rcsb.org/download/{pdb}.pdb'\n"
+            "    with open(f'{pdb}.pdb', 'w') as f:\n"
+            "        f.write(requests.get(pdb_url).text)\n"
+            "    print(f'Downloaded {pdb}.pdb')\n"
+        ),
+        "note": "This workflow goes UniProt ID → PDB IDs → download structures. "
+                "Use SIFTS (`data/corpus/pdb/sifts_pdb_uniprot.csv`) for a pre-built mapping.",
+    },
+]
+
+
+def uniprot_api_example():
+    recipe = random.choice(_UNIPROT_RECIPES)
+    answer = (
+        f"```python\n{recipe['code']}```\n\n"
+        f"{recipe['note']}"
+    )
+    return _record(
+        f"How do I {recipe['intent']} using the UniProt REST API?",
+        answer,
+    )
+
+
+# ===========================================================================
+# CATEGORY 3: RDKit Breadth
+# ===========================================================================
+
+# ---------------------------------------------------------------------------
+# 3D conformer generation (ETKDG)
+# ---------------------------------------------------------------------------
+
+def conformer_3d_example(smiles: str):
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return None
+    mw = round(Descriptors.MolWt(mol), 1)
+    n_rot = rdMolDescriptors.CalcNumRotatableBonds(mol)
+    # Rough number of conformers recommended
+    n_confs = 50 if n_rot < 5 else 200 if n_rot < 10 else 500
+    answer = (
+        "```python\n"
+        "from rdkit import Chem\n"
+        "from rdkit.Chem import AllChem\n"
+        f"mol = Chem.MolFromSmiles('{smiles}')\n"
+        "mol_h = Chem.AddHs(mol)  # always add Hs before embedding\n"
+        f"params = AllChem.ETKDGv3()\n"
+        "params.randomSeed = 42\n"
+        f"cids = AllChem.EmbedMultipleConfs(mol_h, numConfs={n_confs}, params=params)\n"
+        "# Energy-minimise each conformer with MMFF94\n"
+        "results = AllChem.MMFFOptimizeMoleculeConfs(mol_h, mmffVariant='MMFF94')\n"
+        "energies = [(cid, e[1]) for cid, e in zip(cids, results) if e[0] == 0]\n"
+        "energies.sort(key=lambda x: x[1])\n"
+        "print(f'Generated {len(cids)} conformers, {len(energies)} converged')\n"
+        "print(f'Lowest energy conformer: cid={energies[0][0]}, E={energies[0][1]:.2f} kcal/mol')\n"
+        "# Write all conformers to SDF\n"
+        "writer = Chem.SDWriter('conformers.sdf')\n"
+        "for cid, _ in energies:\n"
+        "    writer.write(mol_h, confId=cid)\n"
+        "writer.close()\n"
+        "```\n\n"
+        f"**{n_confs} conformers** recommended for MW {mw}, {n_rot} rotatable bonds. "
+        "ETKDGv3 (2022) uses torsion angle preferences from the Cambridge Structural Database. "
+        "Always add Hs before embedding and remove after writing. "
+        "MMFF94s (stereospecific) or MMFF94 are both suitable for drug-like molecules."
+    )
+    questions = [
+        f"Generate 3D conformers for {smiles} using RDKit ETKDG.",
+        f"How do I create an ensemble of 3D structures for {smiles}?",
+        f"Compute energy-minimised conformers for {smiles} with RDKit.",
+        f"Generate and rank conformers of {smiles} by MMFF94 energy.",
+    ]
+    return _record(random.choice(questions), answer)
+
+
+# ---------------------------------------------------------------------------
+# Maximum Common Substructure (MCS)
+# ---------------------------------------------------------------------------
+
+def mcs_example(smi_a: str, smi_b: str):
+    mol_a = Chem.MolFromSmiles(smi_a)
+    mol_b = Chem.MolFromSmiles(smi_b)
+    if mol_a is None or mol_b is None:
+        return None
+    try:
+        result = _rdFMCS.FindMCS(
+            [mol_a, mol_b],
+            timeout=1,
+            bondCompare=_rdFMCS.BondCompare.CompareOrderExact,
+            atomCompare=_rdFMCS.AtomCompare.CompareElements,
+        )
+        if not result.smartsString or result.numAtoms < 3:
+            return None
+        mcs_smarts = result.smartsString
+        n_atoms = result.numAtoms
+    except Exception:
+        return None
+    answer = (
+        "```python\n"
+        "from rdkit import Chem\n"
+        "from rdkit.Chem import rdFMCS\n"
+        f"mol_a = Chem.MolFromSmiles('{smi_a}')\n"
+        f"mol_b = Chem.MolFromSmiles('{smi_b}')\n"
+        "result = rdFMCS.FindMCS(\n"
+        "    [mol_a, mol_b],\n"
+        "    timeout=10,\n"
+        "    bondCompare=rdFMCS.BondCompare.CompareOrderExact,\n"
+        "    atomCompare=rdFMCS.AtomCompare.CompareElements,\n"
+        ")\n"
+        "print('MCS SMARTS:', result.smartsString)\n"
+        "print('MCS atoms:', result.numAtoms)\n"
+        "print('MCS bonds:', result.numBonds)\n"
+        "```\n\n"
+        f"**MCS ({n_atoms} atoms):** `{mcs_smarts}`\n\n"
+        "The MCS is the largest substructure shared by both molecules. "
+        "Applications: scaffold alignment, RBFE perturbation network design, "
+        "matched molecular pair identification, and activity cliff detection."
+    )
+    questions = [
+        f"Find the maximum common substructure of:\nA: {smi_a}\nB: {smi_b}",
+        f"What is the MCS between {smi_a} and {smi_b}?",
+        f"Compute the largest shared scaffold between {smi_a} and {smi_b} using rdFMCS.",
+        f"Identify the common core of {smi_a} and {smi_b}.",
+    ]
+    return _record(random.choice(questions), answer)
+
+
+# ---------------------------------------------------------------------------
+# Reaction SMARTS
+# ---------------------------------------------------------------------------
+
+_REACTION_EXAMPLES = [
+    {
+        "name": "ester hydrolysis",
+        "smarts": "[CX3:1](=[OX1])[OX2:2][#6:3]>>[CX3:1](=[OX1])O.[OX2H:2][#6:3]",
+        "description": "Hydrolysis of an ester to carboxylic acid + alcohol",
+        "example_smi": "CC(=O)OCC",
+        "example_name": "ethyl acetate",
+    },
+    {
+        "name": "amide bond formation",
+        "smarts": "[CX3:1](=[OX1])[OX2H].[NX3:2]>>[CX3:1](=[OX1])[NX3:2]",
+        "description": "Amide coupling (carboxylic acid + amine → amide + water)",
+        "example_smi": "CC(=O)O.CN",
+        "example_name": "acetic acid + methylamine",
+    },
+    {
+        "name": "N-methylation",
+        "smarts": "[NX3:1]>>[NX3:1][CH3]",
+        "description": "N-methylation: adds methyl group to any nitrogen",
+        "example_smi": "c1ccccc1N",
+        "example_name": "aniline",
+    },
+    {
+        "name": "Boc deprotection",
+        "smarts": "[NX3:1]C(=O)OC(C)(C)C>>[NX3H:1]",
+        "description": "Acid-mediated Boc deprotection to reveal free amine",
+        "example_smi": "CC(C)(C)OC(=O)Nc1ccccc1",
+        "example_name": "N-Boc aniline",
+    },
+    {
+        "name": "bioisosteric COOH → tetrazole",
+        "smarts": "[CX3:1](=[OX1])[OX2H]>>[#6:1]-c1nnn[nH]1",
+        "description": "Replace carboxylic acid with tetrazole bioisostere",
+        "example_smi": "CC(=O)O",
+        "example_name": "acetic acid",
+    },
+]
+
+
+def reaction_smarts_example(smiles: str):
+    ex = random.choice(_REACTION_EXAMPLES)
+    mol = Chem.MolFromSmiles(ex["example_smi"])
+    if mol is None:
+        return None
+    try:
+        rxn = _rdChemReactions.ReactionFromSmarts(ex["smarts"])
+        products = rxn.RunReactants((mol,))
+    except Exception:
+        products = []
+    prod_smiles = []
+    for pset in products[:3]:
+        try:
+            psmi = ".".join(Chem.MolToSmiles(p) for p in pset if p is not None)
+            if psmi:
+                prod_smiles.append(psmi)
+        except Exception:
+            pass
+    prod_str = ", ".join(f"`{s}`" for s in prod_smiles[:2]) if prod_smiles else "products depend on substrate"
+    answer = (
+        f"**Reaction: {ex['name'].title()}**\n\n"
+        "```python\n"
+        "from rdkit import Chem\n"
+        "from rdkit.Chem import rdChemReactions\n"
+        f"rxn = rdChemReactions.ReactionFromSmarts('{ex['smarts']}')\n"
+        f"mol = Chem.MolFromSmiles('{ex['example_smi']}')  # {ex['example_name']}\n"
+        "products = rxn.RunReactants((mol,))\n"
+        "for pset in products:\n"
+        "    print([Chem.MolToSmiles(p) for p in pset])\n"
+        "```\n\n"
+        f"**SMARTS:** `{ex['smarts']}`\n\n"
+        f"**Description:** {ex['description']}\n\n"
+        f"**Applied to {ex['example_name']} (`{ex['example_smi']}`):** {prod_str}"
+    )
+    questions = [
+        f"Write an RDKit reaction SMARTS for {ex['name']} and apply it to {ex['example_smi']}.",
+        f"How do I perform {ex['name']} using RDKit reaction SMARTS?",
+        f"Apply the {ex['name']} transformation to {ex['example_smi']} using rdChemReactions.",
+        f"Encode {ex['name']} as a SMARTS reaction and run it on {ex['example_smi']}.",
+    ]
+    return _record(random.choice(questions), answer)
+
+
+# ---------------------------------------------------------------------------
+# RECAP / BRICS fragmentation
+# ---------------------------------------------------------------------------
+
+def recap_fragmentation_example(smiles: str):
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return None
+    style = random.choice(["recap", "brics"])
+    if style == "recap":
+        try:
+            tree = _RecapDecompose(mol)
+            leaves = tree.GetLeaves()
+            frags = sorted({Chem.MolToSmiles(Chem.MolFromSmiles(smi.replace("*", "[H]")))
+                            for smi in leaves if smi and "*" in smi
+                            and Chem.MolFromSmiles(smi.replace("*", "[H]")) is not None},
+                           key=len)[:6]
+        except Exception:
+            return None
+        if not frags:
+            return None
+        frag_list = "\n".join(f"- `{f}`" for f in frags)
+        answer = (
+            "```python\n"
+            "from rdkit import Chem\n"
+            "from rdkit.Chem.Recap import RecapDecompose\n"
+            f"mol = Chem.MolFromSmiles('{smiles}')\n"
+            "tree = RecapDecompose(mol)\n"
+            "leaves = tree.GetLeaves()\n"
+            "fragments = sorted(leaves.keys(), key=len)\n"
+            "for frag in fragments[:6]:\n"
+            "    print(frag)\n"
+            "```\n\n"
+            f"RECAP fragments of `{smiles}`:\n\n{frag_list}\n\n"
+            "RECAP (Retrosynthetic Combinatorial Analysis Procedure) cleaves bonds at 11 "
+            "chemical rules mimicking common medicinal chemistry transformations. "
+            "Fragments retain the attachment point as `*`. "
+            "Used in fragment-based drug discovery and virtual library enumeration."
+        )
+    else:
+        try:
+            pieces = _BRICSDecompose(mol)
+            frags = sorted({Chem.MolToSmiles(Chem.MolFromSmiles(p))
+                            for p in pieces
+                            if p and Chem.MolFromSmiles(p) is not None},
+                           key=len)[:6]
+        except Exception:
+            return None
+        if not frags:
+            return None
+        frag_list = "\n".join(f"- `{f}`" for f in frags)
+        answer = (
+            "```python\n"
+            "from rdkit import Chem\n"
+            "from rdkit.Chem.BRICS import BRICSDecompose\n"
+            f"mol = Chem.MolFromSmiles('{smiles}')\n"
+            "fragments = BRICSDecompose(mol)\n"
+            "for frag in sorted(fragments, key=len)[:6]:\n"
+            "    print(frag)\n"
+            "```\n\n"
+            f"BRICS fragments of `{smiles}`:\n\n{frag_list}\n\n"
+            "BRICS (Breaking of Retrosynthetically Interesting Chemical Substructures) "
+            "uses 16 bond-breaking rules to generate synthetically accessible fragments. "
+            "The attachment points are encoded as `[14CH2]` etc. "
+            "Used for fragment-based design and library enumeration."
+        )
+    questions = [
+        f"Fragment {smiles} using {'RECAP' if style == 'recap' else 'BRICS'} decomposition.",
+        f"Apply {'RECAP' if style == 'recap' else 'BRICS'} fragmentation to {smiles} with RDKit.",
+        f"What are the {'RECAP' if style == 'recap' else 'BRICS'} fragments of {smiles}?",
+        f"Break {smiles} into fragments using RDKit {'Recap' if style == 'recap' else 'BRICS'}.",
+    ]
+    return _record(random.choice(questions), answer)
+
+
+# ===========================================================================
+# CATEGORY 4: PDB Depth
+# ===========================================================================
+
+# ---------------------------------------------------------------------------
+# Electron density and structure validation
+# ---------------------------------------------------------------------------
+
+_ELECTRON_DENSITY_QA = [
+    {
+        "q": "How do I validate the electron density fit of a ligand pose?",
+        "a": (
+            "Three levels of electron density validation:\n\n"
+            "**1. RSCC (Real-Space Correlation Coefficient)** — from the PDB validation report:\n"
+            "```python\n"
+            "import requests\n"
+            "pdb_id = '1HSG'\n"
+            "comp_id = 'MK1'\n"
+            "# Fetch validation report from RCSB\n"
+            "url = f'https://data.rcsb.org/rest/v1/core/nonpolymer_entity_instance/{pdb_id}/A/1403'\n"
+            "data = requests.get(url).json()\n"
+            "# Look for pdbx_vrpt_instance_results in the response\n"
+            "print('RSCC:', data.get('pdbx_vrpt_instance_results', {}).get('RSCC'))\n"
+            "```\n\n"
+            "**2. Visual inspection in Coot or PyMOL:**\n"
+            "```\n"
+            "# PyMOL with electron density map\n"
+            "fetch 1HSG\n"
+            "fetch 1HSG, type=2fofc       # 2Fo-Fc map\n"
+            "isomesh mesh1, 1HSG_2fofc, 1.5, resn MK1, carve=2\n"
+            "show sticks, resn MK1\n"
+            "center resn MK1\n"
+            "```\n\n"
+            "**3. Automated Mogul/CCDC check** for ligand geometry (bond lengths, angles, torsions).\n\n"
+            "**Quality thresholds:**\n"
+            "| RSCC | Confidence |\n"
+            "|---|---|\n"
+            "| > 0.90 | Excellent |\n"
+            "| 0.80–0.90 | Good |\n"
+            "| 0.60–0.80 | Marginal |\n"
+            "| < 0.60 | Poor — query the pose |"
+        ),
+    },
+    {
+        "q": "What is the difference between Fo-Fc and 2Fo-Fc electron density maps?",
+        "a": (
+            "Both are difference Fourier maps computed during X-ray refinement:\n\n"
+            "**2Fo-Fc (σA-weighted):** The main electron density map. "
+            "Shows where atoms ARE. Contoured at 1.0–1.5σ (blue mesh in Coot). "
+            "If the ligand is well-placed, it sits inside a blob of 2Fo-Fc density.\n\n"
+            "**Fo-Fc (difference map):** Residuals after subtracting the model's calculated "
+            "structure factors from the observed data. "
+            "**Green (+3σ):** missing atoms or unmodelled density. "
+            "**Red (−3σ):** atoms placed where there is no density (wrong position). "
+            "The ideal model shows only noise (no significant Fo-Fc features).\n\n"
+            "**Omit map:** Like Fo-Fc but the ligand is removed from the model before "
+            "phasing — eliminates model bias. Used to confirm a ligand is genuinely present. "
+            "If the ligand reappears as a positive Fo-Fc blob, binding is confirmed.\n\n"
+            "```\n"
+            "# PyMOL: view both maps for a ligand\n"
+            "fetch 1HSG\n"
+            "fetch 1HSG, type=2fofc\n"
+            "fetch 1HSG, type=fofc\n"
+            "isomesh mesh_2fofc, 1HSG_2fofc, 1.5, resn MK1, carve=2\n"
+            "isomesh mesh_fofc, 1HSG_fofc, 3.0, resn MK1, carve=2\n"
+            "color blue, mesh_2fofc\n"
+            "color green, mesh_fofc\n"
+            "show sticks, resn MK1\n"
+            "```"
+        ),
+    },
+    {
+        "q": "How do I assess crystal contacts near the binding site?",
+        "a": (
+            "Crystal contacts are symmetry-related protein copies that pack against each other. "
+            "They can distort the binding site (especially flexible loops) relative to the "
+            "biological conformation.\n\n"
+            "```python\n"
+            "# Generate symmetry mates and check contacts in PyMOL\n"
+            "fetch 1HSG, async=0\n"
+            "remove solvent\n"
+            "symexp sym, 1HSG, all, 5  # all symmetry mates within 5 Å\n"
+            "show cartoon\n"
+            "color grey80, sym*\n"
+            "color cyan, 1HSG\n"
+            "select binding_site, byres (1HSG within 8 of resn MK1)\n"
+            "select crystal_contacts, byres (sym* within 5 of binding_site)\n"
+            "show sticks, crystal_contacts\n"
+            "color yellow, crystal_contacts\n"
+            "```\n\n"
+            "```python\n"
+            "# Check with gemmi (symmetry-aware)\n"
+            "import gemmi\n"
+            "st = gemmi.read_structure('1hsg.pdb')\n"
+            "ns = gemmi.NeighborSearch(st[0], st.cell, 5.0)\n"
+            "ns.populate(include_h=False)\n"
+            "print('Space group:', st.spacegroup_hm)\n"
+            "print('Unit cell:', st.cell)\n"
+            "```\n\n"
+            "If a crystal contact residue is within 5 Å of the active site, "
+            "the binding mode may be artefactual. Compare with other crystal forms or solution NMR."
+        ),
+    },
+]
+
+
+def electron_density_example():
+    ex = random.choice(_ELECTRON_DENSITY_QA)
+    return _record(ex["q"], ex["a"])
+
+
+# ---------------------------------------------------------------------------
+# Biological assembly vs asymmetric unit
+# ---------------------------------------------------------------------------
+
+_BIO_ASSEMBLY_QA = [
+    {
+        "q": "What is the difference between the asymmetric unit and the biological assembly in a PDB file?",
+        "a": (
+            "**Asymmetric unit (ASU):** the unique content in the crystal that, when combined with "
+            "crystallographic symmetry, generates the full crystal lattice. "
+            "It may contain a fraction or multiple copies of the biologically relevant molecule.\n\n"
+            "**Biological assembly:** the functionally relevant oligomeric state. "
+            "For example, HIV protease ASU contains a monomer, but the biological assembly is "
+            "a homodimer. A virus capsid ASU may contain 1/60th of the icosahedral shell.\n\n"
+            "```python\n"
+            "import requests\n"
+            "pdb_id = '1HSG'\n"
+            "url = f'https://data.rcsb.org/rest/v1/core/entry/{pdb_id}'\n"
+            "d = requests.get(url).json()\n"
+            "assemblies = d.get('rcsb_entry_info', {}).get('assembly_count', 'unknown')\n"
+            "stoich = d.get('rcsb_entry_info', {}).get('polymer_composition', 'unknown')\n"
+            "print(f'Assemblies: {assemblies}')\n"
+            "print(f'Composition: {stoich}')\n"
+            "```\n\n"
+            "```\n"
+            "# PyMOL: load biological assembly (not ASU)\n"
+            "fetch 1HSG, type=pdb1  # pdb1 = first biological assembly\n"
+            "remove solvent\n"
+            "show cartoon\n"
+            "```\n\n"
+            "**For drug design:** always use the biological assembly — modelling a monomer "
+            "when the target is a dimer can misplace the binding site (e.g., HIV protease dimer interface)."
+        ),
+    },
+    {
+        "q": "How do I download and visualise the biological assembly for a PDB entry?",
+        "a": (
+            "```python\n"
+            "import requests\n"
+            "pdb_id = '1HSG'\n"
+            "assembly_id = '1'  # first biological assembly\n"
+            "# Download assembly (mmCIF format — recommended)\n"
+            "url = f'https://files.rcsb.org/download/{pdb_id}-assembly{assembly_id}.cif'\n"
+            "r = requests.get(url)\n"
+            "with open(f'{pdb_id}_assembly{assembly_id}.cif', 'w') as f:\n"
+            "    f.write(r.text)\n"
+            "print(f'Downloaded {pdb_id} assembly {assembly_id}')\n"
+            "```\n\n"
+            "```\n"
+            "# PyMOL method (easiest)\n"
+            "fetch 1HSG, type=pdb1  # first biological assembly\n"
+            "# For mmCIF assemblies:\n"
+            "# fetch 1HSG, type=cif\n"
+            "remove solvent\n"
+            "show cartoon\n"
+            "color cyan, chain A\n"
+            "color salmon, chain B\n"
+            "show sticks, organic\n"
+            "center organic\n"
+            "```\n\n"
+            "RCSB provides assemblies as PDB, mmCIF, and PDBML. "
+            "For large assemblies (virus capsids), use the `.bcif` (BinaryCIF) format for speed."
+        ),
+    },
+]
+
+
+def biological_assembly_example():
+    ex = random.choice(_BIO_ASSEMBLY_QA)
+    return _record(ex["q"], ex["a"])
+
+
+# ===========================================================================
+# CATEGORY 5: Corpus drug enrichment
+# ===========================================================================
+
+_DRUG_TARGET_FAMILIES = [
+    {
+        "family": "GPCR (G protein-coupled receptor)",
+        "mechanism": "7-transmembrane receptor; agonists activate (increase cAMP/IP3/Ca²⁺), "
+                     "antagonists block, inverse agonists suppress basal activity",
+        "examples": [
+            {"name": "salbutamol", "smi": "CC(CCc1ccc(O)c(O)c1)NCC(O)c1ccc(O)c(O)c1", "target": "β2-adrenoceptor agonist"},
+            {"name": "propranolol", "smi": "CC(C)NCC(O)COc1cccc2ccccc12", "target": "β-adrenoceptor antagonist"},
+            {"name": "clozapine", "smi": "CN1CCN(c2nc3ccccc3nc2Cl)CC1", "target": "D4/5-HT2A antagonist (antipsychotic)"},
+        ],
+        "pdb": "3SN6",
+        "key_question": "What type of receptor does {name} target, and what is its mechanism of action?",
+    },
+    {
+        "family": "Ion channel",
+        "mechanism": "transmembrane pore; blockers bind within the channel (pore blockers) "
+                     "or at extracellular/intracellular vestibules",
+        "examples": [
+            {"name": "lidocaine", "smi": "CCN(CC)CC(=O)Nc1c(C)cccc1C", "target": "Nav1 pore blocker (local anaesthetic)"},
+            {"name": "nifedipine", "smi": "COC(=O)C1=C(C)NC(C)=C(C(=O)OC)C1c1ccccc1[N+](=O)[O-]", "target": "Cav1.2 blocker (DHP)"},
+            {"name": "amiodarone", "smi": "CCCCc1oc2ccccc2c1CC(=O)Nc1ccc(I)c(OCC)c1", "target": "hERG/Nav/Cav blocker (antiarrhythmic)"},
+        ],
+        "pdb": "6J8E",
+        "key_question": "What ion channel does {name} target and what is its binding mechanism?",
+    },
+    {
+        "family": "Nuclear receptor",
+        "mechanism": "ligand-gated transcription factor; agonists induce conformational change "
+                     "that recruits co-activators; antagonists block co-activator binding",
+        "examples": [
+            {"name": "tamoxifen", "smi": "CCC(=C(c1ccccc1)c1ccc(OCCN(C)C)cc1)c1ccccc1", "target": "ERα partial agonist/antagonist (SERM)"},
+            {"name": "rosiglitazone", "smi": "CN(CCOc1ccc(CC2SC(=O)NC2=O)cc1)c1ccccc1C", "target": "PPARγ full agonist (insulin sensitiser)"},
+            {"name": "dexamethasone", "smi": "C[C@@H]1C[C@H]2[C@@H]3CCC4=CC(=O)C=C[C@]4(C)[C@@H]3[C@@H](O)C[C@@]2(C)[C@]1(O)C(=O)CO", "target": "GR agonist (corticosteroid)"},
+        ],
+        "pdb": "3ERT",
+        "key_question": "Describe the mechanism of action of {name} at its nuclear receptor target.",
+    },
+    {
+        "family": "Protease",
+        "mechanism": "enzyme active site binder; serine/cysteine/aspartyl/metalloprotease; "
+                     "competitive inhibitors mimic the transition state",
+        "examples": [
+            {"name": "ritonavir", "smi": "CC(C)c1nc(CN(C)C(=O)N[C@@H](CCc2ccccc2)C(=O)N[C@@H](CC(C)C)C[C@H](O)[C@H](Cc2ccccc2)NC(=O)OCC2CCCO2)cs1", "target": "HIV protease aspartyl protease"},
+            {"name": "saquinavir", "smi": "CC(C)(C)NC(=O)[C@@H]1C[C@@H]2CCCC[C@H]2CN1C[C@@H](O)[C@H](Cc1ccccc1)NC(=O)[C@@H](CC(N)=O)NC(=O)c1ccc2ccccc2n1", "target": "HIV protease"},
+            {"name": "boceprevir", "smi": "CC(C)(C)NC(=O)[C@H]1[C@H](C(=O)NC(CC(=O)NC1)C(=O)c1nc2ccccc2s1)c1ccncc1", "target": "HCV NS3/4A serine protease"},
+        ],
+        "pdb": "1HSG",
+        "key_question": "What type of protease does {name} inhibit and what is the catalytic mechanism?",
+    },
+]
+
+
+def drug_target_family_example():
+    family = random.choice(_DRUG_TARGET_FAMILIES)
+    drug = random.choice(family["examples"])
+    mol = Chem.MolFromSmiles(drug["smi"])
+    if mol is None:
+        return None
+    mw   = round(Descriptors.MolWt(mol), 1)
+    logp = round(Descriptors.MolLogP(mol), 2)
+    answer = (
+        f"**{drug['name'].title()}** is a **{drug['target']}**.\n\n"
+        f"**Target class:** {family['family']}\n\n"
+        f"**Mechanism:** {family['mechanism']}\n\n"
+        "```python\n"
+        "from rdkit import Chem\n"
+        "from rdkit.Chem import Descriptors, rdMolDescriptors\n"
+        "from rdkit.Chem.QED import qed\n"
+        f"mol = Chem.MolFromSmiles('{drug['smi']}')\n"
+        "print('MW:',   round(Descriptors.MolWt(mol), 1))\n"
+        "print('logP:', round(Descriptors.MolLogP(mol), 2))\n"
+        "print('QED:',  round(qed(mol), 3))\n"
+        "```\n\n"
+        f"MW = {mw}, logP = {logp}.\n\n"
+        f"**See also:** PDB {family['pdb']} for a representative co-crystal structure.\n\n"
+        f"```\n"
+        f"fetch {family['pdb']}, async=0\n"
+        f"remove solvent\n"
+        f"show cartoon\n"
+        f"show sticks, organic\n"
+        f"util.cbag organic\n"
+        f"center organic\n"
+        f"```"
+    )
+    return _record(
+        family["key_question"].format(name=drug["name"]),
+        answer,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Generator registry + main
 # ---------------------------------------------------------------------------
 
@@ -2433,10 +5352,67 @@ def _make_generators():
         ("medchem_mmp",          lambda: medchem_mmp_example(*random.sample(SEED_SMILES, 2))),
         ("single_property",      lambda: single_property_example(random.choice(SEED_SMILES))),
         ("single_property",      lambda: single_property_example(random.choice(SEED_SMILES))),
+        # R5: QED — 6 entries to fix 7:1 underrepresentation
         ("qed_score",            lambda: qed_example(random.choice(SEED_SMILES))),
+        ("qed_score",            lambda: qed_example(random.choice(SEED_SMILES))),
+        ("qed_score",            lambda: qed_example(random.choice(SEED_SMILES))),
+        ("qed_score",            lambda: qed_example(random.choice(SEED_SMILES))),
+        ("qed_score",            lambda: qed_example(random.choice(SEED_SMILES))),
+        ("qed_score",            lambda: qed_example(random.choice(SEED_SMILES))),
+        # R5: TPSA — 6 entries (long-form + acronym phrasings)
+        ("tpsa_score",           lambda: tpsa_example(random.choice(SEED_SMILES))),
+        ("tpsa_score",           lambda: tpsa_example(random.choice(SEED_SMILES))),
+        ("tpsa_score",           lambda: tpsa_example(random.choice(SEED_SMILES))),
+        ("tpsa_score",           lambda: tpsa_example(random.choice(SEED_SMILES))),
+        ("tpsa_score",           lambda: tpsa_example(random.choice(SEED_SMILES))),
+        ("tpsa_score",           lambda: tpsa_example(random.choice(SEED_SMILES))),
+        # R5: Scaffold equality — explicit Boolean, disambiguated from Tanimoto
+        ("scaffold_equality",    lambda: scaffold_equality_example(*random.sample(SEED_SMILES, 2))),
+        ("scaffold_equality",    lambda: scaffold_equality_example(*random.sample(SEED_SMILES, 2))),
+        ("scaffold_equality",    lambda: scaffold_equality_example(*random.sample(SEED_SMILES, 2))),
+        ("scaffold_equality",    lambda: scaffold_equality_example(*random.sample(SEED_SMILES, 2))),
+        ("scaffold_equality",    lambda: scaffold_equality_example(*random.sample(SEED_SMILES, 2))),
+        # R5: Standalone HBD/HBA/RotBonds — fix Descriptors.HBDCount hallucination
+        ("hbd_hba_count",        lambda: hbd_hba_example(random.choice(SEED_SMILES))),
+        ("hbd_hba_count",        lambda: hbd_hba_example(random.choice(SEED_SMILES))),
+        ("hbd_hba_count",        lambda: hbd_hba_example(random.choice(SEED_SMILES))),
+        ("hbd_hba_count",        lambda: hbd_hba_example(random.choice(SEED_SMILES))),
+        ("hbd_hba_count",        lambda: hbd_hba_example(random.choice(SEED_SMILES))),
+        # R5: Salt stripping / largest fragment
+        ("salt_strip",           lambda: salt_strip_example(random.choice(SEED_SMILES))),
+        ("salt_strip",           lambda: salt_strip_example(random.choice(SEED_SMILES))),
+        ("salt_strip",           lambda: salt_strip_example(random.choice(SEED_SMILES))),
+        # R5: InChI and InChIKey
+        ("inchikey",             lambda: inchikey_example(random.choice(SEED_SMILES))),
+        ("inchikey",             lambda: inchikey_example(random.choice(SEED_SMILES))),
+        ("inchikey",             lambda: inchikey_example(random.choice(SEED_SMILES))),
+        # R5: Chirality / stereocenters
+        ("stereo_centers",       lambda: stereo_example(random.choice(SEED_SMILES))),
+        ("stereo_centers",       lambda: stereo_example(random.choice(SEED_SMILES))),
+        ("stereo_centers",       lambda: stereo_example(random.choice(SEED_SMILES))),
+        # R5: Tautomer enumeration
+        ("tautomers",            lambda: tautomer_example(random.choice(SEED_SMILES))),
+        ("tautomers",            lambda: tautomer_example(random.choice(SEED_SMILES))),
+        ("tautomers",            lambda: tautomer_example(random.choice(SEED_SMILES))),
+        # R5: Multi-molecule QED ranking
+        ("multi_mol_rank",       lambda: multi_mol_rank_example(random.sample(SEED_SMILES, random.choice([3, 4])))),
+        ("multi_mol_rank",       lambda: multi_mol_rank_example(random.sample(SEED_SMILES, random.choice([3, 4])))),
+        ("multi_mol_rank",       lambda: multi_mol_rank_example(random.sample(SEED_SMILES, random.choice([3, 4])))),
+        # R5: QED code-then-quote (explicit compute→quote pattern for QED)
+        ("qed_code_then_quote",  lambda: qed_code_then_quote_example(random.choice(SEED_SMILES))),
+        ("qed_code_then_quote",  lambda: qed_code_then_quote_example(random.choice(SEED_SMILES))),
+        ("qed_code_then_quote",  lambda: qed_code_then_quote_example(random.choice(SEED_SMILES))),
+        # R5: Fingerprint similarity (explicit, no scaffold confusion)
+        ("fingerprint_sim",      lambda: fingerprint_similarity_example(*random.sample(SEED_SMILES, 2))),
+        ("fingerprint_sim",      lambda: fingerprint_similarity_example(*random.sample(SEED_SMILES, 2))),
+        ("fingerprint_sim",      lambda: fingerprint_similarity_example(*random.sample(SEED_SMILES, 2))),
+        # R5: Lipinski card (full property table with QED)
+        ("lipinski_card",        lambda: lipinski_card_example(random.choice(SEED_SMILES))),
+        ("lipinski_card",        lambda: lipinski_card_example(random.choice(SEED_SMILES))),
+        ("lipinski_card",        lambda: lipinski_card_example(random.choice(SEED_SMILES))),
+        # Original generators (kept)
         ("molecular_formula",    lambda: molecular_formula_example(random.choice(SEED_SMILES))),
         ("smiles_validation",    smiles_validation_example),
-        ("full_profile",         lambda: full_profile_example(random.choice(SEED_SMILES))),
         ("full_profile",         lambda: full_profile_example(random.choice(SEED_SMILES))),
         ("property_comparison",  lambda: property_comparison_example(*random.sample(SEED_SMILES, 2))),
         ("corpus_drug",          corpus_drug_example),
@@ -2499,13 +5475,123 @@ def _make_generators():
         # --- Robustness ---
         ("refusal",              refusal_example),
         ("refusal",              refusal_example),
+        # --- R5: Medchem / structural filters ---
+        ("pains_filter",         lambda: pains_filter_example(random.choice(SEED_SMILES))),
+        ("pains_filter",         lambda: pains_filter_example(random.choice(SEED_SMILES))),
+        ("pains_filter",         lambda: pains_filter_example(random.choice(SEED_SMILES))),
+        ("structural_alert",     lambda: structural_alert_example(random.choice(SEED_SMILES))),
+        ("structural_alert",     lambda: structural_alert_example(random.choice(SEED_SMILES))),
+        ("structural_alert",     lambda: structural_alert_example(random.choice(SEED_SMILES))),
+        ("bioisostere",          lambda: bioisostere_example(random.choice(SEED_SMILES))),
+        ("bioisostere",          lambda: bioisostere_example(random.choice(SEED_SMILES))),
+        ("bioisostere",          lambda: bioisostere_example(random.choice(SEED_SMILES))),
+        ("lead_opt_rules",       lambda: lead_opt_rules_example(random.choice(SEED_SMILES))),
+        ("lead_opt_rules",       lambda: lead_opt_rules_example(random.choice(SEED_SMILES))),
+        ("lead_opt_rules",       lambda: lead_opt_rules_example(random.choice(SEED_SMILES))),
+        ("adme_heuristics",      lambda: adme_heuristics_example(random.choice(SEED_SMILES))),
+        ("adme_heuristics",      lambda: adme_heuristics_example(random.choice(SEED_SMILES))),
+        ("adme_heuristics",      lambda: adme_heuristics_example(random.choice(SEED_SMILES))),
+        ("sa_score",             lambda: sa_score_example(random.choice(SEED_SMILES))),
+        ("sa_score",             lambda: sa_score_example(random.choice(SEED_SMILES))),
+        ("sa_score",             lambda: sa_score_example(random.choice(SEED_SMILES))),
+        # --- R5: PDB / structural biology expansion ---
+        ("pdb_quality",          pdb_quality_example),
+        ("pdb_quality",          pdb_quality_example),
+        ("pdb_quality",          pdb_quality_example),
+        ("cofactor_binding",     cofactor_binding_example),
+        ("cofactor_binding",     cofactor_binding_example),
+        ("cofactor_binding",     cofactor_binding_example),
+        ("pdb_fetch_api",        pdb_fetch_api_example),
+        ("pdb_fetch_api",        pdb_fetch_api_example),
+        ("pdb_fetch_api",        pdb_fetch_api_example),
+        ("hbond_structure",      hbond_structure_example),
+        ("hbond_structure",      hbond_structure_example),
+        ("hbond_structure",      hbond_structure_example),
+        # --- R5: PyExec drills (×6 — directly target 75% PyExec gap) ---
+        ("pyexec_drill",         lambda: pyexec_drill_example(random.choice(SEED_SMILES))),
+        ("pyexec_drill",         lambda: pyexec_drill_example(random.choice(SEED_SMILES))),
+        ("pyexec_drill",         lambda: pyexec_drill_example(random.choice(SEED_SMILES))),
+        ("pyexec_drill",         lambda: pyexec_drill_example(random.choice(SEED_SMILES))),
+        ("pyexec_drill",         lambda: pyexec_drill_example(random.choice(SEED_SMILES))),
+        ("pyexec_drill",         lambda: pyexec_drill_example(random.choice(SEED_SMILES))),
+        # --- R5: Code→Quote v2 (×5 — target 59% C→Q) ---
+        ("code_then_quote_v2",   lambda: code_then_quote_v2_example(random.choice(SEED_SMILES))),
+        ("code_then_quote_v2",   lambda: code_then_quote_v2_example(random.choice(SEED_SMILES))),
+        ("code_then_quote_v2",   lambda: code_then_quote_v2_example(random.choice(SEED_SMILES))),
+        ("code_then_quote_v2",   lambda: code_then_quote_v2_example(random.choice(SEED_SMILES))),
+        ("code_then_quote_v2",   lambda: code_then_quote_v2_example(random.choice(SEED_SMILES))),
+        # --- R5: Rounding drills (×5 — target 95% rounding) ---
+        ("rounding_explicit",    lambda: rounding_explicit_example(random.choice(SEED_SMILES))),
+        ("rounding_explicit",    lambda: rounding_explicit_example(random.choice(SEED_SMILES))),
+        ("rounding_explicit",    lambda: rounding_explicit_example(random.choice(SEED_SMILES))),
+        ("rounding_explicit",    lambda: rounding_explicit_example(random.choice(SEED_SMILES))),
+        ("rounding_explicit",    lambda: rounding_explicit_example(random.choice(SEED_SMILES))),
+        # --- R5: Multi-step fidelity (×5 — target 61% numerical fidelity) ---
+        ("fidelity_multistep",   lambda: fidelity_multistep_example(random.choice(SEED_SMILES))),
+        ("fidelity_multistep",   lambda: fidelity_multistep_example(random.choice(SEED_SMILES))),
+        ("fidelity_multistep",   lambda: fidelity_multistep_example(random.choice(SEED_SMILES))),
+        ("fidelity_multistep",   lambda: fidelity_multistep_example(random.choice(SEED_SMILES))),
+        ("fidelity_multistep",   lambda: fidelity_multistep_example(random.choice(SEED_SMILES))),
+        # --- R5 Cat 1: Medicinal chemistry ---
+        ("herg_liability",       lambda: herg_liability_example(random.choice(SEED_SMILES))),
+        ("herg_liability",       lambda: herg_liability_example(random.choice(SEED_SMILES))),
+        ("herg_liability",       lambda: herg_liability_example(random.choice(SEED_SMILES))),
+        ("selectivity_profile",  lambda: selectivity_profile_example(random.choice(SEED_SMILES))),
+        ("selectivity_profile",  lambda: selectivity_profile_example(random.choice(SEED_SMILES))),
+        ("selectivity_profile",  lambda: selectivity_profile_example(random.choice(SEED_SMILES))),
+        ("prodrug_bcs",          lambda: prodrug_bcs_example(random.choice(SEED_SMILES))),
+        ("prodrug_bcs",          lambda: prodrug_bcs_example(random.choice(SEED_SMILES))),
+        ("prodrug_bcs",          lambda: prodrug_bcs_example(random.choice(SEED_SMILES))),
+        ("sar_delta",            lambda: sar_delta_example(*random.sample(SEED_SMILES, 2))),
+        ("sar_delta",            lambda: sar_delta_example(*random.sample(SEED_SMILES, 2))),
+        ("sar_delta",            lambda: sar_delta_example(*random.sample(SEED_SMILES, 2))),
+        # --- R5 Cat 2: Structural biology depth ---
+        ("mdanalysis",           mdanalysis_example),
+        ("mdanalysis",           mdanalysis_example),
+        ("mdanalysis",           mdanalysis_example),
+        ("dssp",                 dssp_example),
+        ("dssp",                 dssp_example),
+        ("dssp",                 dssp_example),
+        ("ppi_interface",        ppi_interface_example),
+        ("ppi_interface",        ppi_interface_example),
+        ("ppi_interface",        ppi_interface_example),
+        ("uniprot_api",          uniprot_api_example),
+        ("uniprot_api",          uniprot_api_example),
+        ("uniprot_api",          uniprot_api_example),
+        # --- R5 Cat 3: RDKit breadth ---
+        ("conformer_3d",         lambda: conformer_3d_example(random.choice(SEED_SMILES))),
+        ("conformer_3d",         lambda: conformer_3d_example(random.choice(SEED_SMILES))),
+        ("conformer_3d",         lambda: conformer_3d_example(random.choice(SEED_SMILES))),
+        ("mcs_search",           lambda: mcs_example(*random.sample(SEED_SMILES, 2))),
+        ("mcs_search",           lambda: mcs_example(*random.sample(SEED_SMILES, 2))),
+        ("mcs_search",           lambda: mcs_example(*random.sample(SEED_SMILES, 2))),
+        ("reaction_smarts",      lambda: reaction_smarts_example(random.choice(SEED_SMILES))),
+        ("reaction_smarts",      lambda: reaction_smarts_example(random.choice(SEED_SMILES))),
+        ("reaction_smarts",      lambda: reaction_smarts_example(random.choice(SEED_SMILES))),
+        ("recap_fragmentation",  lambda: recap_fragmentation_example(random.choice(SEED_SMILES))),
+        ("recap_fragmentation",  lambda: recap_fragmentation_example(random.choice(SEED_SMILES))),
+        ("recap_fragmentation",  lambda: recap_fragmentation_example(random.choice(SEED_SMILES))),
+        # --- R5 Cat 4: PDB depth ---
+        ("electron_density",     electron_density_example),
+        ("electron_density",     electron_density_example),
+        ("electron_density",     electron_density_example),
+        ("biological_assembly",  biological_assembly_example),
+        ("biological_assembly",  biological_assembly_example),
+        ("biological_assembly",  biological_assembly_example),
+        # --- R5 Cat 5: Drug target families ---
+        ("drug_target_family",   drug_target_family_example),
+        ("drug_target_family",   drug_target_family_example),
+        ("drug_target_family",   drug_target_family_example),
+        ("drug_target_family",   drug_target_family_example),
+        ("corpus_drug",          corpus_drug_example),
+        ("corpus_drug",          corpus_drug_example),
     ]
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out",  type=Path, default=Path("data/sft"))
-    ap.add_argument("--n",    type=int,  default=7500)
+    ap.add_argument("--n",    type=int,  default=20000)
     ap.add_argument("--seed", type=int,  default=42)
     args = ap.parse_args()
     random.seed(args.seed)
@@ -2525,6 +5611,7 @@ def main():
             skipped += 1
             continue
         if validate(ex):
+            ex["class"] = name
             examples.append(ex)
             if len(examples) % 100 == 0:
                 print(f"  {len(examples)}/{args.n} validated")

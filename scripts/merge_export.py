@@ -19,7 +19,7 @@ from pathlib import Path
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--config", type=Path, default=Path("config/train_config.yaml"))
-    ap.add_argument("--save-path", default="chem_sage_32b")
+    ap.add_argument("--save-path", default="models/chem_sage_32b_v2")
     args = ap.parse_args()
 
     cfg = yaml.safe_load(args.config.read_text())
