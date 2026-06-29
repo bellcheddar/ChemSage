@@ -6,6 +6,7 @@ fused_model/
 chem_sage_32b/
 chem_sage_32b_v2/
 models/
+!models/*/README.md
 ChemSage/
 exports/
 *.gguf

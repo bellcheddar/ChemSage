@@ -1,0 +1,228 @@
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1">
+        <title>ChemSage Comparative Eval — 2026-06-29 11:48</title>
+        <style>
+          :root {
+            --navy:#1C244B; --accent:#467FF7; --bg:#f0f4fb;
+            --card:#fff; --border:#e2e8f0; --text:#1a1a2e;
+          }
+          *{box-sizing:border-box;margin:0;padding:0}
+          body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);
+                color:var(--text);padding:2rem 1.5rem;max-width:1280px;margin:auto}
+          a{color:var(--accent);text-decoration:none}
+          a:hover{text-decoration:underline}
+          /* header */
+          .header{background:var(--navy);color:#fff;border-radius:16px;padding:2rem 2.5rem;
+                   margin-bottom:2rem}
+          .art{font-family:monospace;font-size:.65rem;line-height:1.2;color:#93c5fd;
+                white-space:pre;margin-bottom:1rem}
+          .header h1{font-size:1.4rem;font-weight:700;margin-bottom:.3rem}
+          .header .meta{font-size:.8rem;color:#94a3b8}
+          /* model cards */
+          .cards-row{display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:2rem}
+          .model-card{background:var(--card);border-radius:14px;padding:1.2rem 1.5rem;
+                       flex:1;min-width:200px;box-shadow:0 2px 8px rgba(0,0,0,.06)}
+          .card-name{font-size:.9rem;font-weight:700;margin-bottom:.15rem}
+          .card-sub{font-size:.72rem;color:#6b7280;margin-bottom:.8rem}
+          .card-score{font-size:2.2rem;font-weight:800;color:var(--accent)}
+          .card-label{font-size:.7rem;color:#9ca3af;margin-bottom:.5rem}
+          .card-meta{font-size:.72rem;color:#6b7280}
+          /* sections */
+          h2{font-size:1.1rem;color:var(--navy);margin:2rem 0 .8rem}
+          .section-note{font-size:.75rem;color:#9ca3af;margin-top:.4rem}
+          /* tables */
+          table{width:100%;border-collapse:collapse;background:var(--card);
+                 border-radius:12px;overflow:hidden;
+                 box-shadow:0 2px 8px rgba(0,0,0,.05);margin-bottom:1.5rem}
+          th{background:var(--navy);color:#fff;text-align:left;
+              padding:.6rem 1rem;font-size:.8rem;font-weight:600}
+          td{padding:.5rem 1rem;border-bottom:1px solid var(--border);font-size:.8rem}
+          tr:last-child td{border-bottom:none}
+          tr:nth-child(even){background:#f8fafc}
+          td.q{max-width:320px;word-break:break-word}
+          .profile-table th:first-child{width:200px}
+          .profile-table .section-row td{
+            background:#eef2f9;color:var(--navy);font-weight:600;font-size:.75rem;
+            padding:.35rem 1rem;border-bottom:2px solid var(--border)
+          }
+          .metric-table td:first-child{font-weight:500}
+          .r4-tag{background:#dcfce7;color:#166534;font-size:.65rem;
+                   padding:.1rem .35rem;border-radius:4px;font-weight:600;vertical-align:middle}
+          /* loss chart */
+          .chart-box{background:var(--card);border-radius:12px;padding:1.5rem;
+                      box-shadow:0 2px 8px rgba(0,0,0,.05);margin-bottom:1.5rem}
+          .chart-note{font-size:.7rem;color:#9ca3af;margin-top:.5rem;text-align:center}
+          /* metric controls */
+          .metric-controls{display:flex;gap:1.2rem;align-items:center;
+                             margin-bottom:.8rem;flex-wrap:wrap;
+                             background:var(--card);border-radius:10px;padding:.8rem 1rem;
+                             box-shadow:0 1px 4px rgba(0,0,0,.04)}
+          .metric-controls label{font-size:.8rem;color:#374151;
+                                   display:flex;align-items:center;gap:.4rem}
+          .metric-controls select{font-size:.8rem;border:1px solid #d1d5db;
+                                    border-radius:6px;padding:.25rem .5rem;
+                                    background:#fff;color:#374151;cursor:pointer}
+          .metric-controls select:focus{outline:2px solid var(--accent);outline-offset:1px}
+          .toggle-label{cursor:pointer;user-select:none}
+          .na-badge{background:#fef3c7;color:#92400e;font-size:.65rem;
+                     padding:.1rem .4rem;border-radius:4px;font-weight:700;
+                     letter-spacing:.02em}
+          .delta-cell{min-width:90px}
+          /* footer */
+          .footer{margin-top:2.5rem;font-size:.72rem;color:#9ca3af;text-align:center;
+                   border-top:1px solid var(--border);padding-top:1rem}
+        </style>
+        </head>
+        <body>
+
+        <!-- ── Header ── -->
+        <div class="header">
+          <div class="art">  _______             ____             
+ / ___/ /  ___ __ _  / __/__ ____ ____ 
+/ /__/ _ \/ -_)  ' \_\ \/ _ `/ _ `/ -_)
+\___/_//_/\__/_/_/_/___/\_,_/\_, /\__/ 
+                            /___/      
+</div>
+          <h1>ChemSage — Multi-Round Comparative Evaluation</h1>
+          <div class="meta">
+            2026-06-29 11:48
+            &nbsp;·&nbsp; 100 shared test examples
+            &nbsp;·&nbsp; 13 metrics
+            &nbsp;·&nbsp;
+            <a href="https://github.com/bellcheddar/ChemSage" style="color:#93c5fd">GitHub</a>
+            &nbsp;·&nbsp;
+            <a href="https://marcdeller.com" style="color:#93c5fd">marcdeller.com</a>
+            &nbsp;·&nbsp;
+            <a href="https://marcdeller.com/chemsage" style="color:#93c5fd">marcdeller.com/chemsage</a>
+            &nbsp;·&nbsp;
+            <a href="mailto:marc@marcdeller.com" style="color:#93c5fd">marc@marcdeller.com</a>
+          </div>
+        </div>
+
+        <!-- ── Summary cards ── -->
+        <h2>Model Overview</h2>
+        <div class="cards-row">
+    <div class="model-card" style="border-top:4px solid #94a3b8">
+      <div class="card-name" style="color:#94a3b8">Round 1</div>
+      <div class="card-sub">Proof-of-concept · Qwen2.5-7B</div>
+      <div class="card-score">100%</div>
+      <div class="card-label">overall score</div>
+      <div class="card-meta">
+        val loss <b>0.389</b>
+        &nbsp;·&nbsp;
+        750/750 iters
+        &nbsp;·&nbsp;
+        1200 examples
+      </div>
+    </div></div>
+
+        <!-- ── Loss curves ── -->
+        <h2>Validation Loss Curves</h2>
+        <div class="chart-box">
+          <div style="height:340px; width:100%;">                        <script>window.PlotlyConfig = {MathJaxConfig: 'local'};</script>
+        <script charset="utf-8" src="https://cdn.plot.ly/plotly-3.6.0.min.js" integrity="sha256-QaOVwtVY0T02VaHrr6pnoHLCwayMJp4O5n4YyaE3rJk=" crossorigin="anonymous"></script>                <div id="1b7d0e39-63f1-4d60-8aa5-a25c00651a25" class="plotly-graph-div" style="height:100%; width:100%;"></div>            <script>                window.PLOTLYENV=window.PLOTLYENV || {};                                if (document.getElementById("1b7d0e39-63f1-4d60-8aa5-a25c00651a25")) {                    Plotly.newPlot(                        "1b7d0e39-63f1-4d60-8aa5-a25c00651a25",                        [{"hovertemplate":"\u003cb\u003e%{fullData.name}\u003c\u002fb\u003e\u003cbr\u003eIter: %{x}\u003cbr\u003eVal Loss: %{y:.4f}\u003cextra\u003e\u003c\u002fextra\u003e","line":{"color":"#94a3b8","dash":"dot","width":2.5},"mode":"lines","name":"Round 1","x":[1,75,150,225,300,375,450,525,600,675,750],"y":[2.8,0.75,0.58,0.51,0.475,0.455,0.435,0.415,0.405,0.389,0.392],"type":"scatter"}],                        {"template":{"data":{"barpolar":[{"marker":{"line":{"color":"white","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"barpolar"}],"bar":[{"error_x":{"color":"#2a3f5f"},"error_y":{"color":"#2a3f5f"},"marker":{"line":{"color":"white","width":0.5},"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"bar"}],"carpet":[{"aaxis":{"endlinecolor":"#2a3f5f","gridcolor":"#C8D4E3","linecolor":"#C8D4E3","minorgridcolor":"#C8D4E3","startlinecolor":"#2a3f5f"},"baxis":{"endlinecolor":"#2a3f5f","gridcolor":"#C8D4E3","linecolor":"#C8D4E3","minorgridcolor":"#C8D4E3","startlinecolor":"#2a3f5f"},"type":"carpet"}],"choropleth":[{"colorbar":{"outlinewidth":0,"ticks":""},"type":"choropleth"}],"contourcarpet":[{"colorbar":{"outlinewidth":0,"ticks":""},"type":"contourcarpet"}],"contour":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"contour"}],"heatmap":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"heatmap"}],"histogram2dcontour":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"histogram2dcontour"}],"histogram2d":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"histogram2d"}],"histogram":[{"marker":{"pattern":{"fillmode":"overlay","size":10,"solidity":0.2}},"type":"histogram"}],"mesh3d":[{"colorbar":{"outlinewidth":0,"ticks":""},"type":"mesh3d"}],"parcoords":[{"line":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"parcoords"}],"pie":[{"automargin":true,"type":"pie"}],"scatter3d":[{"line":{"colorbar":{"outlinewidth":0,"ticks":""}},"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatter3d"}],"scattercarpet":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattercarpet"}],"scattergeo":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattergeo"}],"scattergl":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattergl"}],"scattermapbox":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattermapbox"}],"scattermap":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scattermap"}],"scatterpolargl":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatterpolargl"}],"scatterpolar":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatterpolar"}],"scatter":[{"fillpattern":{"fillmode":"overlay","size":10,"solidity":0.2},"type":"scatter"}],"scatterternary":[{"marker":{"colorbar":{"outlinewidth":0,"ticks":""}},"type":"scatterternary"}],"surface":[{"colorbar":{"outlinewidth":0,"ticks":""},"colorscale":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"type":"surface"}],"table":[{"cells":{"fill":{"color":"#EBF0F8"},"line":{"color":"white"}},"header":{"fill":{"color":"#C8D4E3"},"line":{"color":"white"}},"type":"table"}]},"layout":{"annotationdefaults":{"arrowcolor":"#2a3f5f","arrowhead":0,"arrowwidth":1},"autotypenumbers":"strict","coloraxis":{"colorbar":{"outlinewidth":0,"ticks":""}},"colorscale":{"diverging":[[0,"#8e0152"],[0.1,"#c51b7d"],[0.2,"#de77ae"],[0.3,"#f1b6da"],[0.4,"#fde0ef"],[0.5,"#f7f7f7"],[0.6,"#e6f5d0"],[0.7,"#b8e186"],[0.8,"#7fbc41"],[0.9,"#4d9221"],[1,"#276419"]],"sequential":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]],"sequentialminus":[[0.0,"#0d0887"],[0.1111111111111111,"#46039f"],[0.2222222222222222,"#7201a8"],[0.3333333333333333,"#9c179e"],[0.4444444444444444,"#bd3786"],[0.5555555555555556,"#d8576b"],[0.6666666666666666,"#ed7953"],[0.7777777777777778,"#fb9f3a"],[0.8888888888888888,"#fdca26"],[1.0,"#f0f921"]]},"colorway":["#636efa","#EF553B","#00cc96","#ab63fa","#FFA15A","#19d3f3","#FF6692","#B6E880","#FF97FF","#FECB52"],"font":{"color":"#2a3f5f"},"geo":{"bgcolor":"white","lakecolor":"white","landcolor":"white","showlakes":true,"showland":true,"subunitcolor":"#C8D4E3"},"hoverlabel":{"align":"left"},"hovermode":"closest","mapbox":{"style":"light"},"paper_bgcolor":"white","plot_bgcolor":"white","polar":{"angularaxis":{"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":""},"bgcolor":"white","radialaxis":{"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":""}},"scene":{"xaxis":{"backgroundcolor":"white","gridcolor":"#DFE8F3","gridwidth":2,"linecolor":"#EBF0F8","showbackground":true,"ticks":"","zerolinecolor":"#EBF0F8"},"yaxis":{"backgroundcolor":"white","gridcolor":"#DFE8F3","gridwidth":2,"linecolor":"#EBF0F8","showbackground":true,"ticks":"","zerolinecolor":"#EBF0F8"},"zaxis":{"backgroundcolor":"white","gridcolor":"#DFE8F3","gridwidth":2,"linecolor":"#EBF0F8","showbackground":true,"ticks":"","zerolinecolor":"#EBF0F8"}},"shapedefaults":{"line":{"color":"#2a3f5f"}},"ternary":{"aaxis":{"gridcolor":"#DFE8F3","linecolor":"#A2B1C6","ticks":""},"baxis":{"gridcolor":"#DFE8F3","linecolor":"#A2B1C6","ticks":""},"bgcolor":"white","caxis":{"gridcolor":"#DFE8F3","linecolor":"#A2B1C6","ticks":""}},"title":{"x":0.05},"xaxis":{"automargin":true,"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":"","title":{"standoff":15},"zerolinecolor":"#EBF0F8","zerolinewidth":2},"yaxis":{"automargin":true,"gridcolor":"#EBF0F8","linecolor":"#EBF0F8","ticks":"","title":{"standoff":15},"zerolinecolor":"#EBF0F8","zerolinewidth":2}}},"margin":{"l":60,"r":20,"t":30,"b":50},"xaxis":{"title":{"text":"Iteration"},"gridcolor":"#e8edf5","linecolor":"#d1d5db"},"yaxis":{"title":{"text":"Val Loss"},"range":[0,0.62],"gridcolor":"#e8edf5","linecolor":"#d1d5db"},"legend":{"orientation":"h","yanchor":"bottom","y":1.02,"xanchor":"right","x":1,"bgcolor":"rgba(255,255,255,0.8)","bordercolor":"#e2e8f0","borderwidth":1},"font":{"family":"'Segoe UI', system-ui, sans-serif","size":12,"color":"#374151"},"hoverlabel":{"font":{"size":12},"bgcolor":"white","bordercolor":"#e2e8f0"},"height":340,"plot_bgcolor":"#ffffff","paper_bgcolor":"#ffffff"},                        {"displayModeBar": true, "responsive": true, "scrollZoom": false, "modeBarButtonsToRemove": ["lasso2d", "select2d"]}                    )                };            </script>        </div>
+          <div class="chart-note">
+            Y-axis clipped at 0.62 for readability — initial values can reach 2.4–3.2.
+            Dotted line = estimated (no log file). Hover for exact values.
+          </div>
+        </div>
+
+        <!-- ── Training metrics ── -->
+
+
+        <!-- ── Model profiles ── -->
+        <h2>Model Profiles</h2>
+        <table class='profile-table'><thead><tr><th>Attribute</th><th style="color:#94a3b8">Round 1</th></tr></thead><tbody><tr class='section-row'><td colspan='5'>Architecture</td></tr><tr><th>Base model</th><td>Qwen2.5-7B-Instruct-4bit</td></tr><tr><th>Parameters (total)</th><td>7.6 B</td></tr><tr><th>Parameters (trained)</th><td>26 M</td></tr><tr><th>Trainable %</th><td>0.34%</td></tr><tr><th>LoRA type</th><td>RSLoRA</td></tr><tr><th>Rank / scale</th><td>32 / 64.0</td></tr><tr><th>Adapted layers</th><td>16 / 28</td></tr><tr class='section-row'><td colspan='5'>Training</td></tr><tr><th>Learning rate</th><td>2.0e-5</td></tr><tr><th>LR schedule</th><td>cosine + 50-step warmup</td></tr><tr><th>Batch size</th><td>4</td></tr><tr><th>Seed</th><td>42</td></tr><tr><th>Iters configured</th><td>750</td></tr><tr><th>Iters actual</th><td>750</td></tr><tr><th>Training examples</th><td>1200</td></tr><tr><th>Behaviour classes</th><td>8</td></tr><tr><th>Duration</th><td>~4 h (est.)</td></tr><tr class='section-row'><td colspan='5'>Training outcomes</td></tr><tr><th>Best val loss</th><td><b>0.389</b> @ iter 675</td></tr><tr><th>Final train loss</th><td>0.4</td></tr><tr><th>Peak train mem (GB)</th><td>12.0</td></tr><tr><th>Fused model size (GB)</th><td>4.2</td></tr><tr class='section-row'><td colspan='5'>Corpus</td></tr><tr><th>Corpus chunks</th><td>55742</td></tr><tr><th>Corpus notes</th><td>base RAG corpus</td></tr><tr class='section-row'><td colspan='5'>Eval runtime</td></tr><tr><th>Mean latency (s)</th><td>0</td></tr><tr><th>Throughput (tok/s)</th><td>0.1</td></tr><tr><th>Eval duration (min)</th><td>6.0</td></tr><tr><th>Server CPU mean %</th><td>None</td></tr><tr><th>Server CPU peak %</th><td>None</td></tr><tr><th>Server RSS mean (GB)</th><td>None</td></tr><tr><th>Server RSS peak (GB)</th><td>None</td></tr><tr><th>Eval errors</th><td>3</td></tr></tbody></table>
+
+        <!-- ── Metric comparison ── -->
+        <h2>Metric Comparison</h2>
+        <p class="section-note" style="margin-bottom:.6rem">
+          <span class="r4-tag">R4</span> = metric introduced in Round 4 eval harness.
+          Use the controls below to change the Δ comparison pair, or toggle N/A for
+          metrics models weren't trained on.
+        </p>
+        <div class="metric-controls"><label>Compare: <select id="cmp-select"><option value="round1" selected>Round 1</option></select></label><label>vs.&nbsp;Baseline: <select id="base-select"><option value="round1">Round 1</option></select></label><label class="toggle-label"><input type="checkbox" id="na-toggle">&nbsp;Show N/A for metrics models weren't trained on</label></div>
+        <script>window._cseDeltaData={};window._cseDefaultCmp="round1";window._cseDefaultBase="round5";</script><table class='metric-table' id='metric-table'><thead><tr><th>Metric</th><th style="color:#94a3b8" data-model-id="round1" data-model-round="1">Round 1</th><th id="delta-col-header">Δ vs baseline</th></tr></thead><tbody><tr data-metric="smiles_validity" data-introduced="0"><td>SMILES Validity</td><td data-model-id="round1" data-model-round="1" data-metric="smiles_validity" data-introduced="0">n/a</td><td class="delta-cell"></td></tr><tr data-metric="tool_executability" data-introduced="0"><td>Tool Executability</td><td data-model-id="round1" data-model-round="1" data-metric="tool_executability" data-introduced="0">n/a</td><td class="delta-cell"></td></tr><tr data-metric="numerical_fidelity" data-introduced="0"><td>Numerical Fidelity</td><td data-model-id="round1" data-model-round="1" data-metric="numerical_fidelity" data-introduced="0">n/a</td><td class="delta-cell"></td></tr><tr data-metric="rounding_precision" data-introduced="4"><td>Rounding Precision <span class='r4-tag'>R4</span></td><td data-model-id="round1" data-model-round="1" data-metric="rounding_precision" data-introduced="4"><span class="score-val">n/a</span><span class="na-badge" style="display:none" title="Model was trained before this metric was introduced">N/A</span></td><td class="delta-cell"></td></tr><tr data-metric="code_then_quote" data-introduced="4"><td>Code→Quote Fidelity <span class='r4-tag'>R4</span></td><td data-model-id="round1" data-model-round="1" data-metric="code_then_quote" data-introduced="4"><span class="score-val">n/a</span><span class="na-badge" style="display:none" title="Model was trained before this metric was introduced">N/A</span></td><td class="delta-cell"></td></tr><tr data-metric="refusal_accuracy" data-introduced="4"><td>Refusal Accuracy <span class='r4-tag'>R4</span></td><td data-model-id="round1" data-model-round="1" data-metric="refusal_accuracy" data-introduced="4"><span class="score-val">100%</span><span class="na-badge" style="display:none" title="Model was trained before this metric was introduced">N/A</span></td><td class="delta-cell"></td></tr><tr data-metric="qed_range" data-introduced="4"><td>QED Range Check <span class='r4-tag'>R4</span></td><td data-model-id="round1" data-model-round="1" data-metric="qed_range" data-introduced="4"><span class="score-val">n/a</span><span class="na-badge" style="display:none" title="Model was trained before this metric was introduced">N/A</span></td><td class="delta-cell"></td></tr><tr data-metric="python_extended" data-introduced="4"><td>Python Exec (extended) <span class='r4-tag'>R4</span></td><td data-model-id="round1" data-model-round="1" data-metric="python_extended" data-introduced="4"><span class="score-val">n/a</span><span class="na-badge" style="display:none" title="Model was trained before this metric was introduced">N/A</span></td><td class="delta-cell"></td></tr><tr data-metric="degeneration" data-introduced="4"><td>Degeneration-free <span class='r4-tag'>R4</span></td><td data-model-id="round1" data-model-round="1" data-metric="degeneration" data-introduced="4"><span class="score-val">100%</span><span class="na-badge" style="display:none" title="Model was trained before this metric was introduced">N/A</span></td><td class="delta-cell"></td></tr><tr data-metric="code_attempted" data-introduced="4"><td>Code Attempted <span class='r4-tag'>R4</span></td><td data-model-id="round1" data-model-round="1" data-metric="code_attempted" data-introduced="4"><span class="score-val">n/a</span><span class="na-badge" style="display:none" title="Model was trained before this metric was introduced">N/A</span></td><td class="delta-cell"></td></tr><tr data-metric="pdb_id_validity" data-introduced="4"><td>PDB ID Validity <span class='r4-tag'>R4</span></td><td data-model-id="round1" data-model-round="1" data-metric="pdb_id_validity" data-introduced="4"><span class="score-val">100%</span><span class="na-badge" style="display:none" title="Model was trained before this metric was introduced">N/A</span></td><td class="delta-cell"></td></tr><tr data-metric="pymol_syntax" data-introduced="4"><td>PyMOL Syntax Check <span class='r4-tag'>R4</span></td><td data-model-id="round1" data-model-round="1" data-metric="pymol_syntax" data-introduced="4"><span class="score-val">n/a</span><span class="na-badge" style="display:none" title="Model was trained before this metric was introduced">N/A</span></td><td class="delta-cell"></td></tr><tr data-metric="smarts_validity" data-introduced="4"><td>SMARTS Validity <span class='r4-tag'>R4</span></td><td data-model-id="round1" data-model-round="1" data-metric="smarts_validity" data-introduced="4"><span class="score-val">n/a</span><span class="na-badge" style="display:none" title="Model was trained before this metric was introduced">N/A</span></td><td class="delta-cell"></td></tr></tbody></table>
+
+        <!-- ── Per-example table ── -->
+        <h2>Per-Example Results (100 examples)</h2>
+        <p class="section-note" style="margin-bottom:.8rem">
+          Mini scores show first 4 metrics: ✓ = full credit, ✗ = partial or zero.
+          Click <em>responses</em> to expand all model outputs for that example.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Prompt</th>
+              <th style="color:#94a3b8">Round 1</th>
+              <th>Detail</th>
+            </tr>
+          </thead>
+          <tbody><tr><td>1</td><td class="q">I ran this RDKit code on CC(=O)Nc1nnc(S(N)(=O)=O)s1:
+
+```python
+from rdkit import Chem
+fro…</td><td><span title="refusal_accuracy" style="color:#10b981">✓</span> <span title="degeneration" style="color:#10b981">✓</span> <span title="pdb_id_validity" style="color:#10b981">✓</span></td><td><details><summary style="cursor:pointer;color:#467FF7;font-size:.8rem">responses</summary><div style="min-width:400px"><div style="margin:.5rem 0"><span style="color:#94a3b8;font-weight:600">Round 1</span> <span style="color:#9ca3af;font-size:.75rem">120.01s</span><pre style="white-space:pre-wrap;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:.5rem;margin:.3rem 0;font-size:.75rem">[error] HTTPConnectionPool(host='localhost', port=8080): Read timed out. (read timeout=120)</pre></div></div></details></td></tr><tr><td>2</td><td class="q">What is the largest organic fragment of OC(=O)c1ccc(Nc2ncc3cc(Cl)ccc3n2)cc1?</td><td><span title="refusal_accuracy" style="color:#10b981">✓</span> <span title="degeneration" style="color:#10b981">✓</span> <span title="pdb_id_validity" style="color:#10b981">✓</span></td><td><details><summary style="cursor:pointer;color:#467FF7;font-size:.8rem">responses</summary><div style="min-width:400px"><div style="margin:.5rem 0"><span style="color:#94a3b8;font-weight:600">Round 1</span> <span style="color:#9ca3af;font-size:.75rem">120.01s</span><pre style="white-space:pre-wrap;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:.5rem;margin:.3rem 0;font-size:.75rem">[error] HTTPConnectionPool(host='localhost', port=8080): Read timed out. (read timeout=120)</pre></div></div></details></td></tr><tr><td>3</td><td class="q">Write a PyMOL script for 4DKL (CDK2 kinase) to generate a ray-traced figure of the ligand …</td><td><span title="refusal_accuracy" style="color:#10b981">✓</span> <span title="degeneration" style="color:#10b981">✓</span> <span title="pdb_id_validity" style="color:#10b981">✓</span></td><td><details><summary style="cursor:pointer;color:#467FF7;font-size:.8rem">responses</summary><div style="min-width:400px"><div style="margin:.5rem 0"><span style="color:#94a3b8;font-weight:600">Round 1</span> <span style="color:#9ca3af;font-size:.75rem">120.01s</span><pre style="white-space:pre-wrap;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:.5rem;margin:.3rem 0;font-size:.75rem">[error] HTTPConnectionPool(host='localhost', port=8080): Read timed out. (read timeout=120)</pre></div></div></details></td></tr></tbody>
+        </table>
+
+        <div class="footer">
+          Generated by ChemSage comparative eval harness &nbsp;·&nbsp;
+          Marc C. Deller, D.Phil. &nbsp;·&nbsp;
+          <a href="https://github.com/bellcheddar/ChemSage">GitHub</a>
+          &nbsp;·&nbsp;
+          <a href="https://marcdeller.com">marcdeller.com</a>
+          &nbsp;·&nbsp;
+          <a href="https://marcdeller.com/chemsage">marcdeller.com/chemsage</a>
+          &nbsp;·&nbsp;
+          <a href="mailto:marc@marcdeller.com">marc@marcdeller.com</a>
+        </div>
+        <script>
+(function () {
+  function updateDelta() {
+    var cmpId  = document.getElementById('cmp-select').value;
+    var baseId = document.getElementById('base-select').value;
+    document.querySelectorAll('.delta-cell .delta-span').forEach(function (s) {
+      s.style.display = 'none';
+    });
+    document.querySelectorAll(
+      '.delta-cell .delta-span[data-cmp="' + cmpId + '"][data-base="' + baseId + '"]'
+    ).forEach(function (s) { s.style.display = ''; });
+    var cmpOpt  = document.querySelector('#cmp-select option[value="'  + cmpId  + '"]');
+    var baseOpt = document.querySelector('#base-select option[value="' + baseId + '"]');
+    var dh = document.getElementById('delta-col-header');
+    if (dh && cmpOpt && baseOpt)
+      dh.textContent = 'Δ ' + cmpOpt.text + ' vs ' + baseOpt.text;
+  }
+
+  function updateNA() {
+    var show = document.getElementById('na-toggle').checked;
+    document.querySelectorAll('#metric-table td[data-introduced="4"]').forEach(function (td) {
+      var mround = parseInt(td.getAttribute('data-model-round'), 10);
+      if (mround > 0 && mround < 4) {
+        var sv = td.querySelector('.score-val');
+        var na = td.querySelector('.na-badge');
+        if (sv) sv.style.display = show ? 'none' : '';
+        if (na) na.style.display = show ? ''     : 'none';
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var cmpSel  = document.getElementById('cmp-select');
+    var baseSel = document.getElementById('base-select');
+    var naTog   = document.getElementById('na-toggle');
+    if (window._cseDefaultCmp  && cmpSel)  cmpSel.value  = window._cseDefaultCmp;
+    if (window._cseDefaultBase && baseSel) baseSel.value = window._cseDefaultBase;
+    if (cmpSel)  cmpSel.addEventListener('change',  updateDelta);
+    if (baseSel) baseSel.addEventListener('change', updateDelta);
+    if (naTog)   naTog.addEventListener('change',   updateNA);
+    updateDelta();
+  });
+})();
+</script>
+        </body>
+        </html>

@@ -1,0 +1,95 @@
+# ChemSage R5 QLoRA — Qwen2.5-32B-Instruct-4bit (MLX-LM, M1 Max 64 GB)
+#
+# Run with: python scripts/train_launch.py --config config/train_config_r5.yaml
+# Or:       mlx_lm.lora --config config/train_config_r5.yaml --train
+#
+# Changes vs R4 (train_config.yaml):
+#
+#   rank 32→64 / scale 64→90
+#     Keeps RSLoRA effective-alpha ≈ 11.3 (= 90/√64). The rank doubling
+#     gives minority APIs (QED, TPSA, Tanimoto) their own representational
+#     directions, reducing interference from dominant MolWt/MolLogP templates.
+#
+#   iters 1500→3000
+#     R4 best was at iter 950/6400 examples ≈ 0.59 epochs. Applying the same
+#     epoch-fraction to 16k train → best expected at ~iter 2360. Setting 3000
+#     (0.75 epoch) ensures best sits comfortably inside the cosine schedule.
+#
+#   warmup 50→100
+#     Holds the 3.3% warmup-to-total ratio. Higher rank raises early-step
+#     gradient variance; 100-step warmup is cheap insurance.
+#
+#   max_seq_length 2048→3072
+#     Stops truncation from silently deleting the code→quote tokens at the end
+#     of code_then_quote_v2 / fidelity_multistep examples. A direct fix for
+#     Code→Quote and Numerical Fidelity regressions, not just a capacity knob.
+#     Measure p99 token length before launch; raise to 4096 if needed.
+#
+#   val_batches 25→50 / steps_per_eval 25→50 / save_every 25→50
+#     200/2000 val examples gives a stable loss curve across 72 classes.
+#     Eval frequency halved to keep total eval cost flat; 60 checkpoints saved.
+#
+# Pre-launch checklist:
+#   1. Confirm data/sft_r5/ has train/valid/test splits (build must complete)
+#   2. Run: python scripts/check_token_lengths.py  (verify 3072 covers p99)
+#   3. Run: python scripts/balance_classes.py       (cap any class >3× median)
+#   4. Watch val loss at steps 50/100/150: if unstable, fall back to rank=32/scale=64
+#   5. Peak memory estimate: rank64 + seq3072 + batch4 ≈ 32–36 GB (fine on 64 GB)
+#
+# Expected training time: ~30 h (3000 iters × ~35–40 s/iter)
+# Expected best checkpoint: iter 1800–2400 (select by lowest val loss)
+
+# --- Model ---
+model: "mlx-community/Qwen2.5-32B-Instruct-4bit"
+
+train: true
+fine_tune_type: "lora"
+
+# --- Data ---
+data: "data/sft_r5"
+
+# --- Adapter output ---
+adapter_path: "adapters/chem_sage_32b_v5_lora"
+
+# --- LoRA / RSLoRA ---
+# rank=64, scale=90 → effective alpha = 90/√64 = 11.25 ≈ 11.3 (matches R4 tuning)
+# 32 layers: M1 Max sweet spot ~35 s/iter; rank buys capacity cheaper than depth
+num_layers: 32
+lora_parameters:
+  keys:
+    - "self_attn.q_proj"
+    - "self_attn.k_proj"
+    - "self_attn.v_proj"
+    - "self_attn.o_proj"
+    - "mlp.gate_proj"
+    - "mlp.up_proj"
+    - "mlp.down_proj"
+  rank: 64
+  scale: 90.0
+  dropout: 0.05
+
+use_rslora: true
+use_dora: false
+
+# --- Optimisation ---
+iters: 3000
+batch_size: 4
+learning_rate: 2.0e-5
+
+lr_schedule:
+  name: cosine_decay
+  warmup: 100
+  arguments: [2.0e-5, 3000]
+
+weight_decay: 0.01
+
+max_seq_length: 3072
+grad_checkpoint: true
+seed: 51
+
+# --- Reporting / eval / checkpoints ---
+# steps_per_report aligned with steps_per_eval (same as R4 design principle)
+steps_per_report: 50
+steps_per_eval: 50
+val_batches: 50
+save_every: 200   # rank=64 checkpoints ≈1 GB each; 3000/200 = 15 saves ≈ 15 GB (19 GB free on disk)
