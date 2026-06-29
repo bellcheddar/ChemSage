@@ -1109,10 +1109,19 @@ def _model_profile_table(model_configs: list[dict], eval_results: dict) -> str:
         _profile_row("Mean latency (s)",    res_vals(lambda e: str(e["mean_latency"]))),
         _profile_row("Throughput (tok/s)",  res_vals(lambda e: str(e["tok_per_sec"]))),
         _profile_row("Eval duration (min)", res_vals(lambda e: str(e["total_min"]))),
-        _profile_row("Server CPU mean %",   res_vals(lambda e: str(e["resource"].get("cpu_mean_pct", "—")))),
-        _profile_row("Server CPU peak %",   res_vals(lambda e: str(e["resource"].get("cpu_peak_pct", "—")))),
-        _profile_row("Server RSS mean (GB)",res_vals(lambda e: str(e["resource"].get("rss_mean_gb", "—")))),
-        _profile_row("Server RSS peak (GB)",res_vals(lambda e: str(e["resource"].get("rss_peak_gb", "—")))),
+        *(
+            [
+                _profile_row("Server RSS mean (GB)", res_vals(lambda e: str(e["resource"].get("rss_mean_gb", "—")))),
+                _profile_row("Server RSS peak (GB)", res_vals(lambda e: str(e["resource"].get("rss_peak_gb", "—")))),
+                _profile_row("Server CPU mean %",    res_vals(lambda e: str(e["resource"].get("cpu_mean_pct", "—")))),
+                _profile_row("Server CPU peak %",    res_vals(lambda e: str(e["resource"].get("cpu_peak_pct", "—")))),
+            ]
+            if any(
+                eval_results.get(c["id"], {}).get("resource", {}).get("rss_mean_gb") is not None
+                for c in model_configs
+            )
+            else []
+        ),
         _profile_row("Eval errors",         res_vals(lambda e: str(e.get("errors", "—")))),
     ])
 
