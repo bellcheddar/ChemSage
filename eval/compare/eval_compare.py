@@ -1163,10 +1163,10 @@ def _metric_table(model_configs: list[dict], eval_results: dict, baseline_id: st
                     deltas[mkey] = None
             delta_data[pair_key] = deltas
 
-    # Default compare = last model with eval results; default base = baseline_id
+    # Default compare = last model with eval results; default base = first model
     evaled_ids = [cfg["id"] for cfg in model_configs if cfg["id"] in model_scores]
     default_cmp  = evaled_ids[-1] if evaled_ids else baseline_id
-    default_base = baseline_id
+    default_base = model_configs[0]["id"]
 
     # ── Header ──────────────────────────────────────────────────────────────────
     header = (
@@ -1175,7 +1175,6 @@ def _metric_table(model_configs: list[dict], eval_results: dict, baseline_id: st
             f'<th style="color:{c.get("color","#888")}" data-model-id="{c["id"]}"'
             f' data-model-round="{model_round.get(c["id"], 0)}">'
             + c["display_name"]
-            + (" ★" if c.get("is_baseline") else "")
             + "</th>"
             for c in model_configs
         )
@@ -1187,7 +1186,6 @@ def _metric_table(model_configs: list[dict], eval_results: dict, baseline_id: st
     rows = ""
     for mkey, label, _, is_new in METRICS:
         introduced = R4_ROUND if is_new else 0
-        tag = " <span class='r4-tag'>R4</span>" if is_new else ""
 
         # Score cells (one per model)
         cells = ""
@@ -1241,7 +1239,7 @@ def _metric_table(model_configs: list[dict], eval_results: dict, baseline_id: st
 
         rows += (
             f'<tr data-metric="{mkey}" data-introduced="{introduced}">'
-            f'<td>{label}{tag}</td>{cells}'
+            f'<td>{label}</td>{cells}'
             f'<td class="delta-cell">{delta_spans}</td></tr>'
         )
 
