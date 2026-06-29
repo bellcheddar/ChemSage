@@ -23,6 +23,7 @@ models:
     subtitle: "Proof-of-concept · Qwen2.5-7B"
     path: models/chem_sage_7b_v1
     color: "#94a3b8"
+    log_file: "logs/round1_7b_train.log"
     # Architecture
     base_model: "Qwen2.5-7B-Instruct-4bit"
     params_total: "7.6 B"
