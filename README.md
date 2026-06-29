@@ -120,7 +120,7 @@ See **[`PROJECT_PLAN.md`](PROJECT_PLAN.md)** for the full step-by-step build (ph
 
 ### Training parameters
 
-| Parameter | Round 1 (7B) | Round 2 (32B) | Round 3 (32B) | Round 4 (32B) | Round 5 (32B, in progress) |
+| Parameter | Round 1 (7B) | Round 2 (32B) | Round 3 (32B) | Round 4 (32B) | Round 5 (32B, complete) |
 |---|---|---|---|---|---|
 | Base model | `Qwen2.5-7B-Instruct-4bit` | `Qwen2.5-32B-Instruct-4bit` | `Qwen2.5-32B-Instruct-4bit` | `Qwen2.5-32B-Instruct-4bit` | `Qwen2.5-32B-Instruct-4bit` |
 | Fine-tune type | QLoRA (4-bit base) | QLoRA (4-bit base) | QLoRA (4-bit base) | QLoRA (4-bit base) | QLoRA (4-bit base) |
@@ -447,7 +447,7 @@ details), `/retry` (regenerate last response).
 
 ## To Do
 
-### Completed (Rounds 1-3)
+### Completed (Rounds 1-5)
 - [x] Increase SFT dataset from 1,500 to 5,000 examples with code-heavy generators (Round 3)
 - [x] Add examples that teach "emit RDKit code, don't compute manually" (Round 3: `single_property`, `full_profile`)
 - [x] Include SMILES validation examples (Round 3: `smiles_validation`)
@@ -476,7 +476,7 @@ details), `/retry` (regenerate last response).
 - [x] **Early stop at iter 2000** — val loss plateaued at 0.055 from iter 1600 (best: 0.054 at iters 1650 and 1950, unsaved)
 - [x] Best available checkpoint: iter 1600, val loss **0.055** → copied to `adapters.safetensors`
 - [x] Fused into `models/chem_sage_32b_v5/` (~17.2 GB)
-- [ ] Run `eval/compare/eval_compare.py` after fuse
+- [x] Run `eval/compare/eval_compare.py` after fuse
 
 ### Round 4 dataset (complete)
 - [x] 8,000 examples across 59 behaviour classes (`build_dataset.py --n 8000 --seed 47`)
@@ -500,16 +500,36 @@ details), `/retry` (regenerate last response).
 - [x] Complete Round 3 eval: SMILES 99%, Exec 99%, Fidelity 68%
 - [x] Comparative eval harness: `eval/compare/eval_compare.py` with 13 metrics, loss curves, resource stats
 - [x] Comparative eval run after R4 fuse: full 4-round report `eval/compare/results/compare_20260627_1753.html`
-- [ ] Run R5 comparative eval after fuse: add Round 5 to `eval/compare/models.yaml` and run `eval_compare.py`
-- [ ] Improve exec/PyExec from R4's 74%/75% to >85% (R5 training target: `pyexec_drill`, `code_then_quote_v2`)
+- [x] Run R5 comparative eval after fuse: add Round 5 to `eval/compare/models.yaml` and run `eval_compare.py`
+- [x] Improve exec/PyExec from R4's 74%/75% to >85% (R5 result: exec 95%, PyExec 99%)
 - [ ] Add perplexity benchmark against base (unfine-tuned) 32B
 - [ ] Add hallucination rate metric: count invented PDB IDs, ChEMBL IDs, SMILES not in corpus
 
 ### Infrastructure
 - [x] ChromaDB 1.x fix: `allow_reset=True` in `rag/retrieve.py` and `scripts/ingest_rag.py` — 55,742 chunks preserved, no re-ingest required
 - [x] `psutil` added to `requirements.txt` for server process monitoring in comparative eval
-- [ ] Set up HuggingFace token for authenticated downloads
+- [x] Set up HuggingFace Hub: all 5 models published at [huggingface.co/Dellboy](https://huggingface.co/Dellboy)
 - [ ] Create `scripts/run_eval.sh` (start server, wait, run eval, stop server)
+
+### Round 6 (planned)
+
+Ideas to try next, based on learnings from Rounds 1–5:
+
+- **Weighted class-balanced sampling across all 78 classes.** Distribution shift was the proven cause of the R4 regression (exec 79→71%, SMARTS 100→55%) and SMARTS has swung 100→55→100 across three rounds purely on dataset composition. Lock the fragile metrics by controlling sampling density rather than relying on raw example counts.
+
+- **Triple the `code_then_quote_v2` drill.** Code→Quote fidelity moved from 19% (R4) to 61% (R5) but is still the weakest metric by 28 points. The failure mode is copy-fidelity, not reasoning — add examples where the quoted value must byte-match the printed `stdout` token, including trailing zeros and units, so the model learns to transcribe rather than re-derive.
+
+- **Add a dedicated `pymol_syntax_drill` generator.** PyMOL syntax has sat at 89–90% for two rounds and is the lowest structural biology metric. Failures cluster in selection algebra and command chaining — target those specifically rather than adding more generic structural biology classes.
+
+- **Two-phase curriculum: full run then a short fidelity-focused continuation.** Train the full 78-class dataset to plateau (~1,600 iters, matching R5 pattern), then run a short ~400-iter second phase at lower LR on a weak-metrics-only subset (code→quote, PyMOL, fidelity). Phase 2 is cheap (~7 h) and concentrates remaining capacity on the actual gaps rather than fighting the plateau.
+
+- **Configure for ~2,000 iters, not 3,000.** R3 stopped at 42% of configured iters, R5 at 67% — both plateaued well before the ceiling. Stop burning 15–20 hours on a flat val curve; redirect that budget into the phase-2 continuation or more dataset quality work.
+
+- **Try rank 96 (not 128).** The rank 32→64 jump in R5 tracked with the 95% overall score but the val floor rose to 0.055 with 78 classes, suggesting the harder task is capacity-limited. Rank 96 (~400M trainable params) should sit comfortably under the R5 peak of 30.3 GB; skip rank 128 to avoid swap risk on 64 GB unified memory.
+
+- **Extend `fidelity_multistep` with longer chains and distractor numbers.** Fidelity reached 89%, but the residual 11% is multi-step cases where an intermediate value is transcribed incorrectly. Adding 4–5 step chains with adversarial distractor numbers forces the model to track which value to quote rather than defaulting to the largest or last number.
+
+- **Add per-class eval breakdown and run it on a mid-training checkpoint (~iter 1,000).** R4's exec/SMARTS regression only surfaced after 43 hours of training. A per-class pass/fail on the 100-example shared test set at iter 1,000 would expose class-level dilution early — while there is still time to rebalance the dataset and restart.
 
 ---
 
