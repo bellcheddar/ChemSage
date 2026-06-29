@@ -64,6 +64,9 @@ Full report: `eval/compare/results/compare_20260629_1928.html`.
 ## Usage
 
 ```bash
+# Download from HuggingFace
+huggingface-cli download Dellboy/chem_sage_7b_v1 --local-dir models/chem_sage_7b_v1
+
 mlx_lm.server --model models/chem_sage_7b_v1 --port 8081
 .venv/bin/python scripts/chat.py --model models/chem_sage_7b_v1
 ```

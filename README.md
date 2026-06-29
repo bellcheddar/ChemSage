@@ -13,6 +13,16 @@ computed live by trusted tools rather than guessed. It is useful for: interrogat
 assay and SAR data, triaging compounds, generating correct PyMOL/RDKit scripts, and interpreting
 docking and interaction output, all on local hardware.
 
+## Models on HuggingFace Hub
+
+| Model | HuggingFace | Base | Round |
+|---|---|---|---|
+| ChemSage 7B v1 | [Dellboy/chem_sage_7b_v1](https://huggingface.co/Dellboy/chem_sage_7b_v1) | Qwen2.5-7B-Instruct-4bit | Round 1 |
+| ChemSage 32B v2 | [Dellboy/chem_sage_32b_v2](https://huggingface.co/Dellboy/chem_sage_32b_v2) | Qwen2.5-32B-Instruct-4bit | Round 2 |
+| ChemSage 32B v3 | [Dellboy/chem_sage_32b_v3](https://huggingface.co/Dellboy/chem_sage_32b_v3) | Qwen2.5-32B-Instruct-4bit | Round 3 |
+| ChemSage 32B v4 | [Dellboy/chem_sage_32b_v4](https://huggingface.co/Dellboy/chem_sage_32b_v4) | Qwen2.5-32B-Instruct-4bit | Round 4 |
+| **ChemSage 32B v5** ⭐ | [**Dellboy/chem_sage_32b_v5**](https://huggingface.co/Dellboy/chem_sage_32b_v5) | Qwen2.5-32B-Instruct-4bit | **Round 5 (current)** |
+
 ## The hybrid in one line
 
 RAG keeps it truthful today; the fine-tune makes it consistent tomorrow; RDKit makes it correct always.
