@@ -62,6 +62,24 @@ See **[`PROJECT_PLAN.md`](PROJECT_PLAN.md)** for the full step-by-step build (ph
 | 6 | Close the hybrid loop | `rag/tool_exec.py` |
 | 7 | Chemistry-aware evaluation | `eval/eval_chem.py` |
 
+## How to run
+
+**Terminal 1 — start the model server:**
+```bash
+cd /Users/dellboy/Documents/Vibe_Coding/chem_sage
+source .venv/bin/activate
+mlx_lm.server --model models/chem_sage_32b_v5 --port 8080
+```
+
+**Terminal 2 — run chat:**
+```bash
+cd /Users/dellboy/Documents/Vibe_Coding/chem_sage
+source .venv/bin/activate
+python scripts/chat.py --model models/chem_sage_32b_v5
+```
+
+Wait for "HTTP server listening" in Terminal 1 before starting Terminal 2.
+
 ## Training
 
 ### Training data
