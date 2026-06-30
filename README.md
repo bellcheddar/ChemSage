@@ -291,6 +291,15 @@ The `data/corpus/` directory contains the full retrieval knowledge base: tool re
 
 ## Recent changes
 
+### Chat CLI and dependency fixes (2026-06-30)
+
+- **mlx-lm 0.31.3 API fix (`scripts/chat.py`):** `stream_generate()` and `generate()` no longer accept `verbose=False` as a keyword argument — removed from both call sites.
+- **Corpus fast-path (`rag/corpus_lookup.py`):** Added `"get"` to the lookup trigger words so queries like `"get all EGFR structures"` route directly to the corpus table view instead of falling through to the LLM.
+- **System prompt (`scripts/chat.py`):** Added explicit instruction to render retrieved structured data (PDB structures, bioactivity measurements) as markdown tables rather than generating external API code.
+- **Dependencies (`requirements.txt`):** Added `torch` explicitly (required by `sentence-transformers` for local embeddings).
+- **How to run:** Added quick-start run instructions to the main README — single terminal, venv python, `--no-rag` flag for model-only mode.
+- **All 5 models published to HuggingFace Hub** (`Dellboy/chem_sage_*`).
+
 ### Eval harness fixes and 5-round comparative eval (2026-06-29)
 
 **Tokenizer fix (all models):**

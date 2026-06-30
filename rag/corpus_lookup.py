@@ -313,7 +313,7 @@ def _search_file(cf: CorpusFile, keyword: str,
 # return a complete set (hallucination risk on IDs/counts).  Anything more
 # nuanced ("get the SMILES of …", "what is the IC50 for …") should reach the LLM.
 _LOOKUP_RE = re.compile(
-    r"\b(list|show|display|fetch)\b"
+    r"\b(list|show|display|fetch|get)\b"
     r"|\b(all|every)\b.{0,40}\b(structure|drug|compound|affinity|entry|entries|ligand|mechanism|indication|kinase|molecule|molecules|smiles?|sequence)\b",
     re.IGNORECASE,
 )

@@ -305,7 +305,10 @@ emit a ```python``` code block using the input SMILES; do not recall numbers fro
 - NEVER invent PDB IDs, SMILES strings, compound names, ChEMBL IDs, measured values (IC50, Ki, Kd), \
 or any other specific identifiers. Only report values that appear verbatim in the retrieved context above.
 - When the retrieved context contains the answer, quote the source file and the exact values shown.
-- When the context does not contain enough information, say so explicitly — do not fill gaps from memory.\
+- When the context does not contain enough information, say so explicitly — do not fill gaps from memory.
+- When the retrieved context contains structured data (PDB structures, bioactivity measurements, \
+compounds, binding affinities), present the data directly as a formatted markdown table — do NOT \
+generate code to search for the data externally. The corpus has already been queried; render what was found.\
 """
 
 _SYSTEM_NO_RAG = """\
@@ -823,7 +826,6 @@ def chat_loop(
                     max_tokens=_max_tokens,
                     sampler=make_sampler(temp=0.15),
                     logits_processors=make_logits_processors(repetition_penalty=1.15),
-                    verbose=False,
                 ):
                     tok = chunk.text if hasattr(chunk, "text") else str(chunk)
                     if tok:
@@ -842,7 +844,6 @@ def chat_loop(
                     max_tokens=_max_tokens,
                     sampler=make_sampler(temp=0.15),
                     logits_processors=make_logits_processors(repetition_penalty=1.15),
-                    verbose=False,
                 )
             _console.print(Markdown(full_text, code_theme="monokai"))
 

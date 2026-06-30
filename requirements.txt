@@ -19,6 +19,7 @@ pyfiglet                   # ASCII art banner (optional — graceful fallback if
 
 # --- RAG layer ---
 chromadb
+torch                      # required by sentence-transformers for embeddings
 sentence-transformers      # local embeddings
 pypdf                      # PDF corpus ingestion
 
