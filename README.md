@@ -510,6 +510,12 @@ details), `/retry` (regenerate last response).
 - [x] Set up HuggingFace Hub: all 5 models published at [huggingface.co/Dellboy](https://huggingface.co/Dellboy)
 - [ ] Create `scripts/run_eval.sh` (start server, wait, run eval, stop server)
 
+### Publishing and deployment
+- [ ] **Gradio web UI on marcdeller.com** — wrap `scripts/chat.py` in a Gradio `ChatInterface` (streaming supported via `gr.ChatInterface` + generator); deploy behind a reverse proxy (nginx) on the marcdeller.com VPS alongside the blog; single-command launch with a systemd service or `screen` session.
+- [ ] **HuggingFace Spaces demo** — lightweight Gradio Space pointing at a hosted inference endpoint (HF Inference API or a self-hosted `mlx_lm.server` tunnelled via `ngrok`/Cloudflare Tunnel); lets visitors try the model without any local setup.
+- [ ] **Cloudflare Tunnel for live demos** — expose the local `mlx_lm.server` endpoint securely via `cloudflared tunnel` without opening a port; useful for sharing a live session during talks or blog posts without a permanent cloud deployment.
+- [ ] **Packaged CLI installer** — publish `chat.py` as a `pipx`-installable tool (`pyproject.toml` entry point); users with a local Qwen 32B model can `pipx install chemsage` and point it at their own `mlx_lm.server` endpoint.
+
 ### Round 6 (planned)
 
 Ideas to try next, based on learnings from Rounds 1–5:
