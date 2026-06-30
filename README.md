@@ -433,8 +433,7 @@ New scorecard features: per-class breakdown table (if test examples carry a `cla
 Everything runs locally on **Apple Silicon** via **MLX-LM** (`mlx_lm.lora` to train, `mlx_lm.fuse`
 to merge, `mlx_lm.server` for an OpenAI-compatible endpoint the GUI talks to). Unified memory means
 no VRAM wall: 16 GB handles ~8B, 32 GB ~14B, 64 GB ~32B. QLoRA is automatic because the base is a
-4-bit MLX model. No GGUF or Ollama is required (a GGUF/Ollama route is documented as optional in
-`scripts/merge_export.py`).
+4-bit MLX model.
 
 The chat CLI (`scripts/chat.py`) uses **Rich** for streaming Markdown output (`Live`), corpus tables
 (rounded borders, ellipsis overflow, abbreviated headers), panels, progress spinners, and a themed
