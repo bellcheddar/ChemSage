@@ -2,6 +2,18 @@
 
 > **A hybrid, chemically aware LLM for drug discovery: RAG for facts, a QLoRA-tuned model for behaviour, and live RDKit/PyMOL tool calls for chemical truth. Fine-tuned and served locally on Apple Silicon with MLX-LM.**
 
+![MLX-LM](https://img.shields.io/badge/MLX--LM-Apple%20Silicon-000000?logo=apple&logoColor=white) ![fine-tune](https://img.shields.io/badge/fine--tune-QLoRA-467FF7) ![base](https://img.shields.io/badge/base-Qwen2.5--32B-00897B) ![RAG](https://img.shields.io/badge/RAG-ChromaDB%20+%20RDKit-9b51e0) ![models](https://img.shields.io/badge/models-Hugging%20Face-FFD21E?logo=huggingface&logoColor=black) ![author](https://img.shields.io/badge/author-Marc%20C.%20Deller%2C%20D.Phil.-1C244B)
+
+<table>
+<tr>
+<td>🌐 <b>Website</b></td><td><a href="https://marcdeller.com" target="_blank" rel="noopener noreferrer">marcdeller.com</a></td>
+<td>✉️ <b>Contact</b></td><td><a href="mailto:marc@marcdeller.com">marc@marcdeller.com</a></td>
+<td>🐙 <b>GitHub</b></td><td><a href="https://github.com/bellcheddar/ChemSage" target="_blank" rel="noopener noreferrer">bellcheddar/ChemSage</a></td>
+</tr>
+</table>
+
+---
+
 ChemSage is a locally hosted, open-source assistant that reasons about small molecules (SMILES,
 scaffolds, properties), drives the cheminformatics and structural tools a medicinal chemist
 actually uses (RDKit, PyMOL, docking, PLIP), and grounds every factual claim in your own corpus.
@@ -30,7 +42,7 @@ demonstrate what can be achieved using moderate hardware and limited coding expe
 - [Model data and evaluation stats](https://marcdeller.com/chemsage_evaluation)
 - [Models on Hugging Face](https://huggingface.co/Dellboy)
 
-## Models on HuggingFace Hub
+## 🤗 Models on HuggingFace Hub
 
 | Model | HuggingFace | Base | Round |
 |---|---|---|---|
@@ -40,11 +52,11 @@ demonstrate what can be achieved using moderate hardware and limited coding expe
 | ChemSage 32B v4 | [Dellboy/chem_sage_32b_v4](https://huggingface.co/Dellboy/chem_sage_32b_v4) | Qwen2.5-32B-Instruct-4bit | Round 4 |
 | **ChemSage 32B v5** ⭐ | [**Dellboy/chem_sage_32b_v5**](https://huggingface.co/Dellboy/chem_sage_32b_v5) | Qwen2.5-32B-Instruct-4bit | **Round 5 (current)** |
 
-## The hybrid in one line
+## ⚙️ The hybrid in one line
 
 RAG keeps it truthful today; the fine-tune makes it consistent tomorrow; RDKit makes it correct always.
 
-## Quick start
+## 🚀 Quick start
 
 See **[`PROJECT_PLAN.md`](PROJECT_PLAN.md)** for the full step-by-step build (phases 0 to 8). Short version:
 
@@ -62,7 +74,7 @@ See **[`PROJECT_PLAN.md`](PROJECT_PLAN.md)** for the full step-by-step build (ph
 | 6 | Close the hybrid loop | `rag/tool_exec.py` |
 | 7 | Chemistry-aware evaluation | `eval/eval_chem.py` |
 
-## How to run
+## ▶️ How to run
 
 **Terminal 1 — start the model server:**
 ```bash
@@ -80,7 +92,7 @@ python scripts/chat.py --model models/chem_sage_32b_v5
 
 Wait for "HTTP server listening" in Terminal 1 before starting Terminal 2.
 
-## Training
+## 🎓 Training
 
 ### Training data
 
@@ -245,7 +257,7 @@ The R4 exec regression vs R3 (71% vs 79%) was caused by dataset distribution shi
 structural biology content that reduced the density of pure-RDKit drills. R5 corrected this
 with `pyexec_drill` (×6), `code_then_quote_v2` (×5), and `fidelity_multistep` (×5) generators.
 
-## RAG corpus
+## 📚 RAG corpus
 
 The `data/corpus/` directory contains the full retrieval knowledge base: tool reference docs plus two databases of experimental chemistry data:
 
@@ -289,7 +301,7 @@ The `data/corpus/` directory contains the full retrieval knowledge base: tool re
 | `sifts_pdb_uniprot.csv` | 965,937 | SIFTS: PDB chain -> UniProt accession (canonical target identity bridge) |
 | `sifts_pdb_pfam.csv` | 1,022,861 | SIFTS: PDB chain -> Pfam domain family (fold-level annotation) |
 
-## Recent changes
+## 📝 Recent changes
 
 ### Chat CLI and dependency fixes (2026-06-30)
 
@@ -455,7 +467,7 @@ New scorecard features: per-class breakdown table (if test examples carry a `cla
 - ASCII art banner (ChemSage, `small_slant` font), Rich Markdown rendering, Rich `Table` corpus tables with rounded cyan borders
 - Column display config (`_COL_CFG`) maps all corpus column names to abbreviated headers and per-column max widths; ellipsis overflow keeps all rows single-line
 
-## Stack
+## 🧱 Stack
 
 Everything runs locally on **Apple Silicon** via **MLX-LM** (`mlx_lm.lora` to train, `mlx_lm.fuse`
 to merge, `mlx_lm.server` for an OpenAI-compatible endpoint the GUI talks to). Unified memory means
@@ -471,7 +483,7 @@ computation. Responses stream token-by-token via `mlx_lm.stream_generate` and re
 on completion. New commands: `/save` (export conversation to Markdown), `/info` (session/model
 details), `/retry` (regenerate last response).
 
-## To Do
+## ✅ To Do
 
 ### Completed (Rounds 1-5)
 - [x] Increase SFT dataset from 1,500 to 5,000 examples with code-heavy generators (Round 3)
@@ -558,4 +570,15 @@ Ideas to try next, based on learnings from Rounds 1–5:
 
 ---
 
-*Built by **Marc C. Deller, D.Phil.** · [marcdeller.com](https://marcdeller.com) · marc@marcdeller.com*
+## 👤 Author
+
+**Marc C. Deller, D.Phil.**  
+Structural biologist & drug discovery scientist  
+
+<table>
+<tr>
+<td>🌐</td><td><a href="https://marcdeller.com" target="_blank" rel="noopener noreferrer">marcdeller.com</a></td>
+<td>✉️</td><td><a href="mailto:marc@marcdeller.com">marc@marcdeller.com</a></td>
+<td>🐙</td><td><a href="https://github.com/bellcheddar/ChemSage" target="_blank" rel="noopener noreferrer">github.com/bellcheddar/ChemSage</a></td>
+</tr>
+</table>
