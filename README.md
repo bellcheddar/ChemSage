@@ -51,6 +51,7 @@ demonstrate what can be achieved using moderate hardware and limited coding expe
 | ChemSage 32B v3 | [Dellboy/chem_sage_32b_v3](https://huggingface.co/Dellboy/chem_sage_32b_v3) | Qwen2.5-32B-Instruct-4bit | Round 3 |
 | ChemSage 32B v4 | [Dellboy/chem_sage_32b_v4](https://huggingface.co/Dellboy/chem_sage_32b_v4) | Qwen2.5-32B-Instruct-4bit | Round 4 |
 | **ChemSage 32B v5** ⭐ | [**Dellboy/chem_sage_32b_v5**](https://huggingface.co/Dellboy/chem_sage_32b_v5) | Qwen2.5-32B-Instruct-4bit | **Round 5 (current)** |
+| ChemSage 32B v5 GGUF | [Dellboy/chem_sage_32b_v5-GGUF](https://huggingface.co/Dellboy/chem_sage_32b_v5-GGUF) | Q4_K_M GGUF · 18 GB | Web deployment (ZeroGPU) |
 
 ## ⚙️ The hybrid in one line
 
@@ -73,6 +74,10 @@ See **[`PROJECT_PLAN.md`](PROJECT_PLAN.md)** for the full step-by-step build (ph
 | 5 | Fuse + serve | `mlx_lm.fuse` → `mlx_lm.server --port 8081` |
 | 6 | Close the hybrid loop | `rag/tool_exec.py` |
 | 7 | Chemistry-aware evaluation | `eval/eval_chem.py` |
+
+## 🌐 Web demo
+
+**[chemsage.mdeller.com](https://chemsage.mdeller.com)** — live xterm.js terminal in your browser; no local setup required. Each session connects to the full ChemSage CLI (banner, slash commands, RAG, RDKit execution). Inference runs on a HuggingFace ZeroGPU Space (shared A10G, Q4_K_M GGUF). Availability is best-effort; this is a demo/portfolio piece.
 
 ## ▶️ How to run
 
@@ -302,6 +307,13 @@ The `data/corpus/` directory contains the full retrieval knowledge base: tool re
 | `sifts_pdb_pfam.csv` | 1,022,861 | SIFTS: PDB chain -> Pfam domain family (fold-level annotation) |
 
 ## 📝 Recent changes
+
+### Web deployment: chemsage.mdeller.com (2026-07-22)
+
+- **GGUF conversion pipeline** — MLX 4-bit fused model (`models/chem_sage_32b_v5/`) converted to Q4_K_M GGUF (18 GB) in three steps: dequantise to BF16 safetensors (`mlx_lm.convert --dequantize`), convert to F16 GGUF (`convert_hf_to_gguf.py` from llama.cpp), quantise to Q4_K_M (`llama-quantize`). Requires a Python 3.12 venv — Python 3.14 stdlib shadows `typing_extensions`, breaking mlx-lm and transformers installs.
+- **HF Space inference backend (`web/hf_space/`)** — FastAPI + llama-cpp-python (CUDA build via `CMAKE_ARGS="-DGGML_CUDA=on"`) served on ZeroGPU (shared A10G, 24 GB VRAM). `@spaces.GPU` decorator acquires the GPU per inference call; streams SSE tokens from `/generate`. Deployed as `sdk: docker`, `app_port: 7860`.
+- **Flask xterm.js web app (`web/flask_app/`)** — each browser session gets an xterm.js v5.3.0 terminal backed by a `pty.openpty()` subprocess. `chat_remote.py` injects a fake `mlx_lm` module (plus `mlx.core`) into `sys.modules` before `chat.py` imports; the fake `stream_generate` calls the HF Space `/generate` SSE endpoint. The real `chat.py` runs completely unchanged — all Rich output, slash commands, corpus tables, and RAG behaviour are identical to the local CLI. Dark ChemSage theme: background `#0d1117`, cursor `#00d4ff`.
+- **GGUF model published** — `Dellboy/chem_sage_32b_v5-GGUF` on HuggingFace Hub.
 
 ### Chat CLI and dependency fixes (2026-06-30)
 
@@ -550,9 +562,9 @@ details), `/retry` (regenerate last response).
 - [ ] Create `scripts/run_eval.sh` (start server, wait, run eval, stop server)
 
 ### Publishing and deployment
-- [ ] **Gradio web UI on marcdeller.com** — wrap `scripts/chat.py` in a Gradio `ChatInterface` (streaming supported via `gr.ChatInterface` + generator); deploy behind a reverse proxy (nginx) on the marcdeller.com VPS alongside the blog; single-command launch with a systemd service or `screen` session.
-- [ ] **HuggingFace Spaces demo** — lightweight Gradio Space pointing at a hosted inference endpoint (HF Inference API or a self-hosted `mlx_lm.server` tunnelled via `ngrok`/Cloudflare Tunnel); lets visitors try the model without any local setup.
-- [ ] **Cloudflare Tunnel for live demos** — expose the local `mlx_lm.server` endpoint securely via `cloudflared tunnel` without opening a port; useful for sharing a live session during talks or blog posts without a permanent cloud deployment.
+- [x] **GGUF conversion (2026-07-22)** — MLX 4-bit fused model converted to Q4_K_M GGUF (18 GB) via dequantise → F16 GGUF → Q4_K_M; uploaded to `Dellboy/chem_sage_32b_v5-GGUF`.
+- [x] **HuggingFace Space inference backend (`Dellboy/chem_sage-api`, 2026-07-22)** — FastAPI + llama-cpp-python (CUDA build) + `@spaces.GPU` ZeroGPU decorator; streams SSE tokens from `/generate`; Dockerfile in `web/hf_space/`.
+- [ ] **xterm.js web app on chemsage.mdeller.com** — Flask + flask-sock PTY server (`web/flask_app/`); `chat_remote.py` patches mlx_lm/mlx.core so the real `chat.py` runs unchanged against the HF Space API; xterm.js v5.3.0 terminal UI; deploy with gunicorn + nginx + systemd; add to mdeller.com hub.
 - [ ] **Packaged CLI installer** — publish `chat.py` as a `pipx`-installable tool (`pyproject.toml` entry point); users with a local Qwen 32B model can `pipx install chemsage` and point it at their own `mlx_lm.server` endpoint.
 
 ### Round 6 (planned)

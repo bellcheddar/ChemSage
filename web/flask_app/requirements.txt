@@ -1,0 +1,9 @@
+flask
+flask-sock
+gunicorn
+# chem_sage deps (subset needed for RAG fast-path + Rich CLI)
+rich
+prompt_toolkit
+pyfiglet
+pandas
+rdkit

@@ -6,7 +6,7 @@ medicinal chemist actually uses (RDKit, PyMOL, docking, PLIP), and grounds every
 in the user's own corpus (papers, assay tables, target dossiers, SAR series).
 
 **Author:** Marc C. Deller, D.Phil. ([marcdeller.com](https://marcdeller.com))
-**Status:** Round 5 complete (early stop 2026-06-29 at iter 2000) — best val 0.055 at iter 1600, fused to `models/chem_sage_32b_v5/`. R4 best val **0.041** at iter 950 (24% over R3), fused to `models/chem_sage_32b_v4/`. Eval harness at v4 (13 metrics). Report: `eval/compare/results/compare_20260627_1753.html`. Next: run eval on all 5 rounds.
+**Status:** Round 5 complete (early stop 2026-06-29 at iter 2000) — best val 0.055 at iter 1600, fused to `models/chem_sage_32b_v5/`. R4 best val **0.041** at iter 950 (24% over R3). 5-round comparative eval complete (R5 overall 95%). Web deployment in progress (2026-07-22): GGUF Q4_K_M (18 GB) converted and uploading to HF; HF Space (ZeroGPU inference) + Flask web app (`chemsage.mdeller.com`) in build.
 **Fine-tune stack:** MLX-LM on Apple Silicon (committed; see section 3).
 **Hand-off:** this document is the build brief for Claude Code. Phases are ordered so each one
 is independently testable and delivers value before the next begins.
@@ -236,10 +236,11 @@ tuned model reaching for tools and respecting SMILES validity.
    `mlx_lm.server --model fused_model --port 8080`
 3. The GUI (and `eval/eval_chem.py`) talk to `http://localhost:8080/v1`. Done: no GGUF, no Ollama.
 
-**Route B (optional, only if you specifically want Ollama):** fuse with `--de-quantize` to fp16
-safetensors, then convert with llama.cpp's `convert_hf_to_gguf.py` (which supports Qwen2), then
-`ollama create chem_sage -f <Modelfile>`. Direct `--export-gguf` from `mlx_lm.fuse` only works
-for Llama/Mistral/Mixtral, so a Qwen base needs the llama.cpp step.
+**Route B (web deployment path, executed 2026-07-22):** dequantise the MLX model to BF16 safetensors
+(`mlx_lm.convert --hf-path models/chem_sage_32b_v5 --dequantize`), convert to F16 GGUF with
+`convert_hf_to_gguf.py` from llama.cpp (Qwen2 is supported), then quantise to Q4_K_M with
+`llama-quantize` → 18 GB final. Requires a Python 3.12 venv: Python 3.14 ships `typing_extensions`
+in stdlib, blocking the pip version needed by mlx-lm and transformers. See Phase 9.
 
 **Exit test:** `mlx_lm.server` is up and answers a chemistry prompt (via curl to `/v1/chat/
 completions`) with a tool-emitting response.
@@ -306,6 +307,45 @@ Treat it as a design-build-test-learn loop: failures from Phase 7 become new Pha
 examples; new papers/SAR get ingested into RAG continuously. Re-tune only when you see a
 *behavioural* gap retrieval cannot fix. Keep facts in RAG, keep behaviour in the weights.
 
+### Phase 9 — Web deployment: chemsage.mdeller.com (2026-07-22)
+
+Expose ChemSage as a public demo without keeping the Mac on for inference. Architecture: the fused
+Q4_K_M GGUF runs on a HuggingFace Space (ZeroGPU, shared A10G, 24 GB VRAM); the droplet hosts a
+thin Flask app that renders an xterm.js terminal per browser session via a PTY subprocess running
+the real `chat.py` unchanged.
+
+**Step 1 — GGUF conversion (complete):**
+1. Dequantise MLX model to BF16 safetensors:
+   `mlx_lm.convert --hf-path models/chem_sage_32b_v5 --dequantize --save-path /tmp/chem_sage_32b_v5_bf16`
+   (Python 3.12 venv required — Python 3.14 stdlib shadows `typing_extensions`).
+2. Convert to F16 GGUF:
+   `python llama.cpp/convert_hf_to_gguf.py /tmp/chem_sage_32b_v5_bf16 --outtype f16 --outfile /tmp/chem_sage_32b_v5_f16.gguf` (65.5 GB).
+3. Quantise to Q4_K_M:
+   `llama-quantize /tmp/chem_sage_32b_v5_f16.gguf /tmp/chem_sage_32b_v5_q4km.gguf Q4_K_M` → 18 GB.
+
+**Step 2 — HF Space (`Dellboy/chem_sage-api`):**
+- Upload Q4_K_M GGUF to `Dellboy/chem_sage_32b_v5-GGUF` on the Hub.
+- `web/hf_space/` — FastAPI + llama-cpp-python (CUDA build) + `@spaces.GPU` decorator;
+  streams SSE tokens from a `/generate` endpoint.
+- Dockerfile: `nvidia/cuda:12.1.0-cudnn8-devel-ubuntu22.04`, `CMAKE_ARGS="-DGGML_CUDA=on"`,
+  `app_port: 7860`, `sdk: docker`.
+
+**Step 3 — Flask web app (droplet):**
+- `web/flask_app/` — Flask + flask-sock; each WebSocket connection spawns `chat_remote.py`
+  in a `pty.openpty()` subprocess per session.
+- `chat_remote.py` injects a fake `mlx_lm` module (and `mlx.core`) into `sys.modules` before
+  `chat.py` imports; the fake `stream_generate` calls the HF Space `/generate` SSE endpoint.
+  The real `chat.py` runs completely unchanged — all Rich output, slash commands, and corpus
+  tables work identically.
+- `web/flask_app/templates/index.html` — xterm.js v5.3.0 terminal; dark ChemSage theme
+  (background `#0d1117`, cursor `#00d4ff`); per-session WebSocket at `/ws`.
+- Deploy: `gunicorn -k gevent web.flask_app.wsgi:app`, nginx reverse proxy, systemd service,
+  subdomain `chemsage.mdeller.com`.
+- Add entry to `mdeller-landing/apps.json` for the mdeller.com hub.
+
+**Exit test:** `https://chemsage.mdeller.com` opens an xterm.js terminal, the ChemSage banner
+and prompt appear, and a chemistry query produces a streamed response via the HF Space GPU.
+
 ---
 
 ## 5. Repository structure
@@ -330,14 +370,27 @@ chem_sage/
 │   └── merge_export.py      # fuse (mlx_lm.fuse) + serve (mlx_lm.server); optional GGUF route
 ├── rag/
 │   └── tool_exec.py         # sandboxed RDKit/PyMOL execution shim
-└── eval/
-    ├── eval_chem.py         # chemistry-aware evaluation harness (13 metrics, v4)
-    ├── eval_chem_original.py # frozen original 3-metric harness for R1-R3 re-runs
-    ├── scorecards/          # per-round HTML scorecards (scorecard_r1..r4.html)
-    └── compare/
-        ├── models.yaml      # model registry with all metadata and loss curves
-        ├── eval_compare.py  # multi-round comparative eval (auto-server, 13 metrics, HTML+MD)
-        └── results/         # compare_<timestamp>.html + .md + raw_results.json
+├── eval/
+│   ├── eval_chem.py         # chemistry-aware evaluation harness (13 metrics, v4)
+│   ├── eval_chem_original.py # frozen original 3-metric harness for R1-R3 re-runs
+│   ├── scorecards/          # per-round HTML scorecards (scorecard_r1..r4.html)
+│   └── compare/
+│       ├── models.yaml      # model registry with all metadata and loss curves
+│       ├── eval_compare.py  # multi-round comparative eval (auto-server, 13 metrics, HTML+MD)
+│       └── results/         # compare_<timestamp>.html + .md + raw_results.json
+└── web/                     # Phase 9: web deployment (chemsage.mdeller.com)
+    ├── hf_space/
+    │   ├── app.py           # FastAPI + ZeroGPU inference endpoint (llama-cpp-python, SSE)
+    │   ├── requirements.txt
+    │   ├── README.md        # HF Space card (sdk: docker, app_port: 7860, emoji: ⚗️)
+    │   └── Dockerfile       # nvidia/cuda:12.1.0, CMAKE_ARGS="-DGGML_CUDA=on"
+    └── flask_app/
+        ├── app.py           # Flask + flask-sock WebSocket PTY server
+        ├── chat_remote.py   # mlx_lm/mlx.core patcher; launches real chat.py via importlib
+        ├── requirements.txt # flask, flask-sock, gunicorn, rich, prompt_toolkit, rdkit, pandas
+        ├── wsgi.py
+        └── templates/
+            └── index.html   # xterm.js v5.3.0 terminal (dark theme, status dot, footer links)
 ```
 
 ---
