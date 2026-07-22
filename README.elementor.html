@@ -1,0 +1,1473 @@
+<h1><img src="assets/chemsage_logo.jpg" width="100" alt="ChemSage logo"> ChemSage</h1>
+<blockquote>
+<p><strong>A hybrid, chemically aware LLM for drug discovery: RAG for facts, a QLoRA-tuned model for behaviour, and live RDKit/PyMOL tool calls for chemical truth. Fine-tuned and served locally on Apple Silicon with MLX-LM.</strong></p>
+</blockquote>
+<p><img alt="MLX-LM" src="https://img.shields.io/badge/MLX--LM-Apple%20Silicon-000000?logo=apple&amp;logoColor=white"> <img alt="fine-tune" src="https://img.shields.io/badge/fine--tune-QLoRA-467FF7"> <img alt="base" src="https://img.shields.io/badge/base-Qwen2.5--32B-00897B"> <img alt="RAG" src="https://img.shields.io/badge/RAG-ChromaDB%20+%20RDKit-9b51e0"> <img alt="models" src="https://img.shields.io/badge/models-Hugging%20Face-FFD21E?logo=huggingface&amp;logoColor=black"> <img alt="author" src="https://img.shields.io/badge/author-Marc%20C.%20Deller%2C%20D.Phil.-1C244B"></p>
+<table class="emd-info-table">
+<tr>
+<td>🌐 <b>Website</b></td><td><a href="https://marcdeller.com" target="_blank" rel="noopener noreferrer">marcdeller.com</a></td>
+<td>✉️ <b>Contact</b></td><td><a href="mailto:marc@marcdeller.com">marc@marcdeller.com</a></td>
+<td>🐙 <b>GitHub</b></td><td><a href="https://github.com/bellcheddar/ChemSage" target="_blank" rel="noopener noreferrer">bellcheddar/ChemSage</a></td>
+</tr>
+</table>
+
+<hr>
+<p>ChemSage is a locally hosted, open-source assistant that reasons about small molecules (SMILES, scaffolds, properties), drives the cheminformatics and structural tools a medicinal chemist actually uses (RDKit, PyMOL, docking, PLIP), and grounds every factual claim in your own corpus.</p>
+<p><strong>Why it matters:</strong> off-the-shelf models invent chemistry (wrong logP, malformed SMILES) and cannot see your private SAR data. ChemSage fixes both by separating concerns: volatile knowledge lives in retrieval, stable behaviour lives in the weights, and deterministic chemical facts are computed live by trusted tools rather than guessed. It is useful for: interrogating your own assay and SAR data, triaging compounds, generating correct PyMOL/RDKit scripts, and interpreting docking and interaction output, all on local hardware.</p>
+<p><strong>Initial idea:</strong> Fed up with token, model and upload document limits? Then why not run your own AI models on Mac hardware? Thanks to <a href="https://www.tiktok.com/@ai.christianson">@ai.christianson</a> on TikTok for highlighting the following method to implement MLX-LM optimised fine-tuning of a local LLM on Mac hardware: https://www.tiktok.com/@ai.christianson/video/7538150476467014943?lang=en</p>
+<p><strong>Disclaimer:</strong> I am not a professional coder! This is an exercise in Vibe Coding as a Structural Biologist to get the job done. Use at your own risk, and double check the science. I am still working on validation of the Chemistry and Biology. This is a proof of concept exercise to demonstrate what can be achieved using moderate hardware and limited coding experience.</p>
+<p><strong>Project links:</strong></p>
+<ul>
+<li><a href="https://github.com/bellcheddar/ChemSage">GitHub</a></li>
+<li><a href="https://marcdeller.com/chemsage">My blog on the making of ChemSage</a></li>
+<li><a href="https://marcdeller.com/chemsage_evaluation">Model data and evaluation stats</a></li>
+<li><a href="https://huggingface.co/Dellboy">Models on Hugging Face</a></li>
+</ul>
+<h2>🤗 Models on HuggingFace Hub</h2>
+<div class="emd-table-wrap"><table class="emd-data-table">
+<thead>
+<tr>
+<th>Model</th>
+<th>HuggingFace</th>
+<th>Base</th>
+<th>Round</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="Model">ChemSage 7B v1</td>
+<td data-label="HuggingFace"><a href="https://huggingface.co/Dellboy/chem_sage_7b_v1">Dellboy/chem_sage_7b_v1</a></td>
+<td data-label="Base">Qwen2.5-7B-Instruct-4bit</td>
+<td data-label="Round">Round 1</td>
+</tr>
+<tr>
+<td data-label="Model">ChemSage 32B v2</td>
+<td data-label="HuggingFace"><a href="https://huggingface.co/Dellboy/chem_sage_32b_v2">Dellboy/chem_sage_32b_v2</a></td>
+<td data-label="Base">Qwen2.5-32B-Instruct-4bit</td>
+<td data-label="Round">Round 2</td>
+</tr>
+<tr>
+<td data-label="Model">ChemSage 32B v3</td>
+<td data-label="HuggingFace"><a href="https://huggingface.co/Dellboy/chem_sage_32b_v3">Dellboy/chem_sage_32b_v3</a></td>
+<td data-label="Base">Qwen2.5-32B-Instruct-4bit</td>
+<td data-label="Round">Round 3</td>
+</tr>
+<tr>
+<td data-label="Model">ChemSage 32B v4</td>
+<td data-label="HuggingFace"><a href="https://huggingface.co/Dellboy/chem_sage_32b_v4">Dellboy/chem_sage_32b_v4</a></td>
+<td data-label="Base">Qwen2.5-32B-Instruct-4bit</td>
+<td data-label="Round">Round 4</td>
+</tr>
+<tr>
+<td data-label="Model"><strong>ChemSage 32B v5</strong> ⭐</td>
+<td data-label="HuggingFace"><a href="https://huggingface.co/Dellboy/chem_sage_32b_v5"><strong>Dellboy/chem_sage_32b_v5</strong></a></td>
+<td data-label="Base">Qwen2.5-32B-Instruct-4bit</td>
+<td data-label="Round"><strong>Round 5 (current)</strong></td>
+</tr>
+<tr>
+<td data-label="Model">ChemSage 32B v5 GGUF</td>
+<td data-label="HuggingFace"><a href="https://huggingface.co/Dellboy/chem_sage_32b_v5-GGUF">Dellboy/chem_sage_32b_v5-GGUF</a></td>
+<td data-label="Base">Q4_K_M GGUF · 18 GB</td>
+<td data-label="Round">Web deployment (ZeroGPU)</td>
+</tr>
+</tbody>
+</table></div>
+<h2>⚙️ The hybrid in one line</h2>
+<p>RAG keeps it truthful today; the fine-tune makes it consistent tomorrow; RDKit makes it correct always.</p>
+<h2>🚀 Quick start</h2>
+<p>See <strong><a href="PROJECT_PLAN.md"><code>PROJECT_PLAN.md</code></a></strong> for the full step-by-step build (phases 0 to 8). Short version:</p>
+<div class="emd-table-wrap"><table class="emd-data-table">
+<thead>
+<tr>
+<th>Step</th>
+<th>What</th>
+<th>Script / command</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="Step">0</td>
+<td data-label="What">Env: MLX-LM + RDKit + GUI</td>
+<td data-label="Script / command">(<code>requirements.txt</code>)</td>
+</tr>
+<tr>
+<td data-label="Step">1</td>
+<td data-label="What">Base model (Qwen 2.5 32B, MLX 4-bit)</td>
+<td data-label="Script / command"><code>config/train_config.yaml</code></td>
+</tr>
+<tr>
+<td data-label="Step">2</td>
+<td data-label="What"><strong>RAG first</strong> (ship this alone)</td>
+<td data-label="Script / command"><code>scripts/ingest_rag.py</code></td>
+</tr>
+<tr>
+<td data-label="Step">2a</td>
+<td data-label="What">Download ChEMBL corpus</td>
+<td data-label="Script / command"><code>scripts/download_chembl.py</code> + <code>scripts/download_chembl_extended.py</code></td>
+</tr>
+<tr>
+<td data-label="Step">2b</td>
+<td data-label="What">Download PubChem corpus</td>
+<td data-label="Script / command"><code>scripts/download_pubchem.py</code></td>
+</tr>
+<tr>
+<td data-label="Step">2c</td>
+<td data-label="What">Download PDB corpus</td>
+<td data-label="Script / command"><code>scripts/download_pdb.py</code> + <code>scripts/download_pdb_supplement.py</code></td>
+</tr>
+<tr>
+<td data-label="Step">3</td>
+<td data-label="What">Build + validate SFT dataset</td>
+<td data-label="Script / command"><code>scripts/build_dataset.py</code></td>
+</tr>
+<tr>
+<td data-label="Step">4</td>
+<td data-label="What">QLoRA fine-tune</td>
+<td data-label="Script / command"><code>mlx_lm.lora --config config/train_config.yaml --train</code></td>
+</tr>
+<tr>
+<td data-label="Step">5</td>
+<td data-label="What">Fuse + serve</td>
+<td data-label="Script / command"><code>mlx_lm.fuse</code> → <code>mlx_lm.server --port 8081</code></td>
+</tr>
+<tr>
+<td data-label="Step">6</td>
+<td data-label="What">Close the hybrid loop</td>
+<td data-label="Script / command"><code>rag/tool_exec.py</code></td>
+</tr>
+<tr>
+<td data-label="Step">7</td>
+<td data-label="What">Chemistry-aware evaluation</td>
+<td data-label="Script / command"><code>eval/eval_chem.py</code></td>
+</tr>
+</tbody>
+</table></div>
+<h2>🌐 Web demo</h2>
+<p><strong><a href="https://chemsage.mdeller.com">chemsage.mdeller.com</a></strong> — live xterm.js terminal in your browser; no local setup required. Each session connects to the full ChemSage CLI (banner, slash commands, RDKit execution) running on a DigitalOcean droplet, with inference proxied to a HuggingFace ZeroGPU Space (shared A10G, Q4_K_M GGUF). First query after idle incurs a ~60-120 s cold start while the GPU allocates. Availability is best-effort; this is a demo/portfolio piece.</p>
+<h2>▶️ How to run</h2>
+<p><strong>Terminal 1 — start the model server:</strong></p>
+<pre><code class="language-bash">cd /Users/dellboy/Documents/Vibe_Coding/chem_sage
+source .venv/bin/activate
+mlx_lm.server --model models/chem_sage_32b_v5 --port 8080
+</code></pre>
+<p><strong>Terminal 2 — run chat:</strong></p>
+<pre><code class="language-bash">cd /Users/dellboy/Documents/Vibe_Coding/chem_sage
+source .venv/bin/activate
+python scripts/chat.py --model models/chem_sage_32b_v5
+</code></pre>
+<p>Wait for "HTTP server listening" in Terminal 1 before starting Terminal 2.</p>
+<h2>🎓 Training</h2>
+<h3>🎓 Training data</h3>
+<div class="emd-table-wrap"><table class="emd-data-table">
+<thead>
+<tr>
+<th></th>
+<th>Round 1 (7B)</th>
+<th>Round 2 (32B)</th>
+<th>Round 3 (32B)</th>
+<th>Round 4 (32B)</th>
+<th>Round 5 (32B)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="">Total examples</td>
+<td data-label="Round 1 (7B)">1,500</td>
+<td data-label="Round 2 (32B)">1,500</td>
+<td data-label="Round 3 (32B)">5,000</td>
+<td data-label="Round 4 (32B)">8,000</td>
+<td data-label="Round 5 (32B)">20,000</td>
+</tr>
+<tr>
+<td data-label="">Train / valid / test</td>
+<td data-label="Round 1 (7B)">1,200 / 150 / 150</td>
+<td data-label="Round 2 (32B)">1,200 / 150 / 150</td>
+<td data-label="Round 3 (32B)">4,000 / 500 / 500</td>
+<td data-label="Round 4 (32B)">6,400 / 800 / 800</td>
+<td data-label="Round 5 (32B)">16,000 / 2,000 / 2,000</td>
+</tr>
+<tr>
+<td data-label="">Behaviour classes</td>
+<td data-label="Round 1 (7B)">8</td>
+<td data-label="Round 2 (32B)">8</td>
+<td data-label="Round 3 (32B)">19</td>
+<td data-label="Round 4 (32B)">59</td>
+<td data-label="Round 5 (32B)">78</td>
+</tr>
+<tr>
+<td data-label="">Seed SMILES</td>
+<td data-label="Round 1 (7B)">25</td>
+<td data-label="Round 2 (32B)">25</td>
+<td data-label="Round 3 (32B)">51 + corpus drugs</td>
+<td data-label="Round 4 (32B)">51 + corpus drugs</td>
+<td data-label="Round 5 (32B)">51 + corpus drugs</td>
+</tr>
+<tr>
+<td data-label="">Corpus drug examples</td>
+<td data-label="Round 1 (7B)">—</td>
+<td data-label="Round 2 (32B)">—</td>
+<td data-label="Round 3 (32B)">~1,000</td>
+<td data-label="Round 4 (32B)">~1,000 + protein family PDBs</td>
+<td data-label="Round 5 (32B)">~1,200 + protein family PDBs</td>
+</tr>
+<tr>
+<td data-label="">Code-block density</td>
+<td data-label="Round 1 (7B)">Low (~50%)</td>
+<td data-label="Round 2 (32B)">Low (~50%)</td>
+<td data-label="Round 3 (32B)">High (~80%)</td>
+<td data-label="Round 4 (32B)">High (~85%)</td>
+<td data-label="Round 5 (32B)">High (~90%)</td>
+</tr>
+<tr>
+<td data-label="">Generator script</td>
+<td data-label="Round 1 (7B)"><code>--n 1500</code></td>
+<td data-label="Round 2 (32B)"><code>--n 1500</code></td>
+<td data-label="Round 3 (32B)"><code>--n 5000 --seed 43</code></td>
+<td data-label="Round 4 (32B)"><code>--n 8000 --seed 47</code></td>
+<td data-label="Round 5 (32B)"><code>--n 20000 --seed 51</code></td>
+</tr>
+<tr>
+<td data-label="">Validation</td>
+<td data-label="Round 1 (7B)">RDKit + SMILES</td>
+<td data-label="Round 2 (32B)">RDKit + SMILES</td>
+<td data-label="Round 3 (32B)">RDKit + SMILES</td>
+<td data-label="Round 4 (32B)">RDKit + SMILES</td>
+<td data-label="Round 5 (32B)">RDKit + SMILES</td>
+</tr>
+<tr>
+<td data-label="">Token lengths (p50/p99/max)</td>
+<td data-label="Round 1 (7B)">—</td>
+<td data-label="Round 2 (32B)">—</td>
+<td data-label="Round 3 (32B)">—</td>
+<td data-label="Round 4 (32B)">—</td>
+<td data-label="Round 5 (32B)">322 / 488 / 558</td>
+</tr>
+<tr>
+<td data-label="">Rejected examples</td>
+<td data-label="Round 1 (7B)">—</td>
+<td data-label="Round 2 (32B)">—</td>
+<td data-label="Round 3 (32B)">243 (95%)</td>
+<td data-label="Round 4 (32B)">—</td>
+<td data-label="Round 5 (32B)">707 (96.5%)</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Behaviour classes by round:</strong></p>
+<p><em>Round 3 additions (targeting R2 eval gaps):</em></p>
+<div class="emd-table-wrap"><table class="emd-data-table">
+<thead>
+<tr>
+<th>Class</th>
+<th>Weight</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="Class"><code>single_property</code></td>
+<td data-label="Weight">2x</td>
+<td data-label="Purpose">One property at a time with code block</td>
+</tr>
+<tr>
+<td data-label="Class"><code>full_profile</code></td>
+<td data-label="Weight">2x</td>
+<td data-label="Purpose">Complete property profile via code</td>
+</tr>
+<tr>
+<td data-label="Class"><code>qed_score</code></td>
+<td data-label="Weight">1x</td>
+<td data-label="Purpose">QED drug-likeness score</td>
+</tr>
+<tr>
+<td data-label="Class"><code>molecular_formula</code></td>
+<td data-label="Weight">1x</td>
+<td data-label="Purpose">Formula, atom counts, ring analysis</td>
+</tr>
+<tr>
+<td data-label="Class"><code>smiles_validation</code></td>
+<td data-label="Weight">1x</td>
+<td data-label="Purpose">Valid/invalid SMILES handling</td>
+</tr>
+<tr>
+<td data-label="Class"><code>property_comparison</code></td>
+<td data-label="Weight">1x</td>
+<td data-label="Purpose">Side-by-side two-molecule comparison</td>
+</tr>
+<tr>
+<td data-label="Class"><code>corpus_drug</code></td>
+<td data-label="Weight">2x</td>
+<td data-label="Purpose">Named drugs from approved_drugs.csv</td>
+</tr>
+<tr>
+<td data-label="Class"><code>murcko_sar</code></td>
+<td data-label="Weight">1x</td>
+<td data-label="Purpose">Scaffold comparison with SAR context</td>
+</tr>
+</tbody>
+</table></div>
+<p><em>Round 4 additions (structural biology + fidelity):</em></p>
+<div class="emd-table-wrap"><table class="emd-data-table">
+<thead>
+<tr>
+<th>Class</th>
+<th>Weight</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="Class"><code>pymol_selection</code></td>
+<td data-label="Weight">2x</td>
+<td data-label="Purpose">PyMOL selection algebra (within, byres, chain, resi)</td>
+</tr>
+<tr>
+<td data-label="Class"><code>pymol_viz</code></td>
+<td data-label="Weight">2x</td>
+<td data-label="Purpose">PyMOL visualization (surface, alignment, symmetry, B-factor, figures)</td>
+</tr>
+<tr>
+<td data-label="Class"><code>plip_analysis</code></td>
+<td data-label="Weight">2x</td>
+<td data-label="Purpose">PLIP interaction types (H-bond, hydrophobic, pi-stack, salt bridge, halogen)</td>
+</tr>
+<tr>
+<td data-label="Class"><code>pdb_format</code></td>
+<td data-label="Weight">2x</td>
+<td data-label="Purpose">PDB file format (ATOM/HETATM, altloc, B-factor interpretation)</td>
+</tr>
+<tr>
+<td data-label="Class"><code>pdbtools</code></td>
+<td data-label="Weight">2x</td>
+<td data-label="Purpose">pdb-tools CLI recipes (selchain, selres, tidy, splitmodel)</td>
+</tr>
+<tr>
+<td data-label="Class"><code>biopython</code></td>
+<td data-label="Weight">2x</td>
+<td data-label="Purpose">Bio.PDB patterns (SMCRA, NeighborSearch, Superimposer)</td>
+</tr>
+<tr>
+<td data-label="Class"><code>chimerax</code></td>
+<td data-label="Weight">2x</td>
+<td data-label="Purpose">ChimeraX commands (hbonds, clashes, matchmaker)</td>
+</tr>
+<tr>
+<td data-label="Class"><code>gemmi</code></td>
+<td data-label="Weight">1x</td>
+<td data-label="Purpose">gemmi mmCIF/PDB parsing and neighbour search</td>
+</tr>
+<tr>
+<td data-label="Class"><code>struct_prep</code></td>
+<td data-label="Weight">1x</td>
+<td data-label="Purpose">Structure preparation (PDBFixer, protonation, 3D conformers)</td>
+</tr>
+<tr>
+<td data-label="Class"><code>docking_interp</code></td>
+<td data-label="Weight">2x</td>
+<td data-label="Purpose">Docking result interpretation (Vina scores, RMSD, Kd estimation)</td>
+</tr>
+<tr>
+<td data-label="Class"><code>plotly</code></td>
+<td data-label="Weight">2x</td>
+<td data-label="Purpose">Plotly Python visualization (MW vs logP, radar charts)</td>
+</tr>
+<tr>
+<td data-label="Class"><code>r_recipe</code></td>
+<td data-label="Weight">2x</td>
+<td data-label="Purpose">R/ggplot2/bio3d/Plotly-R (SAR plots, RMSD, RMSF)</td>
+</tr>
+<tr>
+<td data-label="Class"><code>protein_family</code></td>
+<td data-label="Weight">3x</td>
+<td data-label="Purpose">Kinases, GPCRs, antibodies, GTPases, cytokines, receptors (real PDB data)</td>
+</tr>
+<tr>
+<td data-label="Class"><code>code_then_quote</code></td>
+<td data-label="Weight">3x</td>
+<td data-label="Purpose">"Compute then quote" pattern for numerical fidelity</td>
+</tr>
+<tr>
+<td data-label="Class"><code>rounding_precision</code></td>
+<td data-label="Weight">2x</td>
+<td data-label="Purpose">Exact rounding conventions (MW 1dp, logP 2dp, TPSA 1dp)</td>
+</tr>
+<tr>
+<td data-label="Class"><code>personality_drug</code></td>
+<td data-label="Weight">3x</td>
+<td data-label="Purpose">Lipinski verdicts with ✅/❌ cards, emoji, and medchem humor</td>
+</tr>
+<tr>
+<td data-label="Class"><code>personality_valid</code></td>
+<td data-label="Weight">2x</td>
+<td data-label="Purpose">SMILES validation with flair and emoji</td>
+</tr>
+<tr>
+<td data-label="Class"><code>personality_struct</code></td>
+<td data-label="Weight">3x</td>
+<td data-label="Purpose">Structural observations with character and humor</td>
+</tr>
+<tr>
+<td data-label="Class"><code>refusal</code></td>
+<td data-label="Weight">2x</td>
+<td data-label="Purpose">Out-of-scope and invalid query handling</td>
+</tr>
+</tbody>
+</table></div>
+<h3>🎓 Training parameters</h3>
+<div class="emd-table-wrap"><table class="emd-data-table">
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Round 1 (7B)</th>
+<th>Round 2 (32B)</th>
+<th>Round 3 (32B)</th>
+<th>Round 4 (32B)</th>
+<th>Round 5 (32B, complete)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="Parameter">Base model</td>
+<td data-label="Round 1 (7B)"><code>Qwen2.5-7B-Instruct-4bit</code></td>
+<td data-label="Round 2 (32B)"><code>Qwen2.5-32B-Instruct-4bit</code></td>
+<td data-label="Round 3 (32B)"><code>Qwen2.5-32B-Instruct-4bit</code></td>
+<td data-label="Round 4 (32B)"><code>Qwen2.5-32B-Instruct-4bit</code></td>
+<td data-label="Round 5 (32B, complete)"><code>Qwen2.5-32B-Instruct-4bit</code></td>
+</tr>
+<tr>
+<td data-label="Parameter">Fine-tune type</td>
+<td data-label="Round 1 (7B)">QLoRA (4-bit base)</td>
+<td data-label="Round 2 (32B)">QLoRA (4-bit base)</td>
+<td data-label="Round 3 (32B)">QLoRA (4-bit base)</td>
+<td data-label="Round 4 (32B)">QLoRA (4-bit base)</td>
+<td data-label="Round 5 (32B, complete)">QLoRA (4-bit base)</td>
+</tr>
+<tr>
+<td data-label="Parameter"><code>use_rslora</code></td>
+<td data-label="Round 1 (7B)"><code>true</code></td>
+<td data-label="Round 2 (32B)"><code>true</code></td>
+<td data-label="Round 3 (32B)"><code>true</code></td>
+<td data-label="Round 4 (32B)"><code>true</code></td>
+<td data-label="Round 5 (32B, complete)"><code>true</code></td>
+</tr>
+<tr>
+<td data-label="Parameter">LoRA rank</td>
+<td data-label="Round 1 (7B)">32</td>
+<td data-label="Round 2 (32B)">32</td>
+<td data-label="Round 3 (32B)">32</td>
+<td data-label="Round 4 (32B)">32</td>
+<td data-label="Round 5 (32B, complete)"><strong>64</strong></td>
+</tr>
+<tr>
+<td data-label="Parameter">LoRA scale</td>
+<td data-label="Round 1 (7B)">64.0</td>
+<td data-label="Round 2 (32B)">64.0</td>
+<td data-label="Round 3 (32B)">64.0</td>
+<td data-label="Round 4 (32B)">64.0</td>
+<td data-label="Round 5 (32B, complete)"><strong>90.0</strong></td>
+</tr>
+<tr>
+<td data-label="Parameter">LoRA keys</td>
+<td data-label="Round 1 (7B)">q/k/v/o_proj + gate/up/down_proj</td>
+<td data-label="Round 2 (32B)">q/k/v/o_proj + gate/up/down_proj</td>
+<td data-label="Round 3 (32B)">q/k/v/o_proj + gate/up/down_proj</td>
+<td data-label="Round 4 (32B)">q/k/v/o_proj + gate/up/down_proj</td>
+<td data-label="Round 5 (32B, complete)">q/k/v/o_proj + gate/up/down_proj</td>
+</tr>
+<tr>
+<td data-label="Parameter"><code>num_layers</code></td>
+<td data-label="Round 1 (7B)">16 (of 28)</td>
+<td data-label="Round 2 (32B)">32 (of 64)</td>
+<td data-label="Round 3 (32B)">32 (of 64)</td>
+<td data-label="Round 4 (32B)">32 (of 64)</td>
+<td data-label="Round 5 (32B, complete)">32 (of 64)</td>
+</tr>
+<tr>
+<td data-label="Parameter"><code>iters</code></td>
+<td data-label="Round 1 (7B)">750</td>
+<td data-label="Round 2 (32B)">750</td>
+<td data-label="Round 3 (32B)">1,500 (stopped at 625)</td>
+<td data-label="Round 4 (32B)">1,500 (complete)</td>
+<td data-label="Round 5 (32B, complete)"><strong>3,000</strong></td>
+</tr>
+<tr>
+<td data-label="Parameter"><code>batch_size</code></td>
+<td data-label="Round 1 (7B)">4</td>
+<td data-label="Round 2 (32B)">4</td>
+<td data-label="Round 3 (32B)">4</td>
+<td data-label="Round 4 (32B)">4</td>
+<td data-label="Round 5 (32B, complete)">4</td>
+</tr>
+<tr>
+<td data-label="Parameter"><code>learning_rate</code></td>
+<td data-label="Round 1 (7B)">2e-5</td>
+<td data-label="Round 2 (32B)">2e-5</td>
+<td data-label="Round 3 (32B)">2e-5</td>
+<td data-label="Round 4 (32B)">2e-5</td>
+<td data-label="Round 5 (32B, complete)">2e-5</td>
+</tr>
+<tr>
+<td data-label="Parameter">LR schedule</td>
+<td data-label="Round 1 (7B)">Cosine, 50-step warmup</td>
+<td data-label="Round 2 (32B)">Cosine, 50-step warmup</td>
+<td data-label="Round 3 (32B)">Cosine, 50-step warmup</td>
+<td data-label="Round 4 (32B)">Cosine, 50-step warmup</td>
+<td data-label="Round 5 (32B, complete)">Cosine, <strong>100</strong>-step warmup</td>
+</tr>
+<tr>
+<td data-label="Parameter"><code>max_seq_length</code></td>
+<td data-label="Round 1 (7B)">2048</td>
+<td data-label="Round 2 (32B)">2048</td>
+<td data-label="Round 3 (32B)">2048</td>
+<td data-label="Round 4 (32B)">2048</td>
+<td data-label="Round 5 (32B, complete)"><strong>3072</strong></td>
+</tr>
+<tr>
+<td data-label="Parameter"><code>steps_per_report</code></td>
+<td data-label="Round 1 (7B)">10</td>
+<td data-label="Round 2 (32B)">10</td>
+<td data-label="Round 3 (32B)">10</td>
+<td data-label="Round 4 (32B)">25 (aligned with eval)</td>
+<td data-label="Round 5 (32B, complete)"><strong>50</strong> (aligned with eval)</td>
+</tr>
+<tr>
+<td data-label="Parameter"><code>val_batches</code></td>
+<td data-label="Round 1 (7B)">—</td>
+<td data-label="Round 2 (32B)">—</td>
+<td data-label="Round 3 (32B)">—</td>
+<td data-label="Round 4 (32B)">25</td>
+<td data-label="Round 5 (32B, complete)"><strong>50</strong></td>
+</tr>
+<tr>
+<td data-label="Parameter"><code>seed</code></td>
+<td data-label="Round 1 (7B)">42</td>
+<td data-label="Round 2 (32B)">42</td>
+<td data-label="Round 3 (32B)">43</td>
+<td data-label="Round 4 (32B)">51</td>
+<td data-label="Round 5 (32B, complete)">51</td>
+</tr>
+<tr>
+<td data-label="Parameter">Trainable params</td>
+<td data-label="Round 1 (7B)">~26M (0.34%)</td>
+<td data-label="Round 2 (32B)">134M (0.41%)</td>
+<td data-label="Round 3 (32B)">134M (0.41%)</td>
+<td data-label="Round 4 (32B)">134M (0.41%)</td>
+<td data-label="Round 5 (32B, complete)"><strong>268M (0.82%)</strong></td>
+</tr>
+<tr>
+<td data-label="Parameter">Peak memory</td>
+<td data-label="Round 1 (7B)">~12 GB</td>
+<td data-label="Round 2 (32B)">24.9 GB</td>
+<td data-label="Round 3 (32B)">25.2 GB</td>
+<td data-label="Round 4 (32B)">24.9 GB</td>
+<td data-label="Round 5 (32B, complete)">~33 GB est.</td>
+</tr>
+<tr>
+<td data-label="Parameter">Training data</td>
+<td data-label="Round 1 (7B)">1,200 examples</td>
+<td data-label="Round 2 (32B)">1,200 examples</td>
+<td data-label="Round 3 (32B)">4,000 examples</td>
+<td data-label="Round 4 (32B)">6,400 examples</td>
+<td data-label="Round 5 (32B, complete)"><strong>16,000 examples</strong></td>
+</tr>
+<tr>
+<td data-label="Parameter">Adapter path</td>
+<td data-label="Round 1 (7B)"><code>adapters/chem_sage_7b_v1_lora/</code></td>
+<td data-label="Round 2 (32B)"><code>adapters/chem_sage_32b_v2_lora/</code></td>
+<td data-label="Round 3 (32B)"><code>adapters/chem_sage_32b_v3_lora/</code></td>
+<td data-label="Round 4 (32B)"><code>adapters/chem_sage_32b_v4_lora/</code></td>
+<td data-label="Round 5 (32B, complete)"><code>adapters/chem_sage_32b_v5_lora/</code></td>
+</tr>
+<tr>
+<td data-label="Parameter">Fused model path</td>
+<td data-label="Round 1 (7B)"><code>models/chem_sage_7b_v1/</code></td>
+<td data-label="Round 2 (32B)"><code>models/chem_sage_32b_v2/</code></td>
+<td data-label="Round 3 (32B)"><code>models/chem_sage_32b_v3/</code></td>
+<td data-label="Round 4 (32B)"><code>models/chem_sage_32b_v4/</code></td>
+<td data-label="Round 5 (32B, complete)"><code>models/chem_sage_32b_v5/</code></td>
+</tr>
+</tbody>
+</table></div>
+<p>Notes: Round 3 was configured for 1,500 iters but stopped early at actual iter 625 after val loss plateaued at ~0.060. Training was resumed from iter 100 checkpoint after a battery shutdown. 64 layers was attempted first but caused swap thrashing at 31.5 GB peak; reverted to 32 layers. batch_size=8 was also attempted but ran 4.5x slower due to memory pressure; reverted to 4. Round 4 uses 32 layers (same as R3) — 48 and 64 layers were found to be too slow (~2–2.5 min/iter) on M1 Max; 32 layers is the throughput sweet spot at ~40 sec/iter. Round 5 doubles the LoRA rank to 64 with RSLoRA scale 90.0 (effective alpha ≈ 11.25, same order as R4's 11.31), triples the iters to 3,000, extends max_seq_length to 3,072, and doubles val_batches to 50 for a more stable eval signal. Trainable parameters doubled to 268M (0.82%).</p>
+<h3>🎓 Training loss curves</h3>
+<p>Validation loss measured every 25 steps over 25 batches. Round 3 was resumed from iter 100 checkpoint after a battery shutdown; actual iter = logged iter + 100 for the resumed portion.</p>
+<div class="emd-table-wrap"><table class="emd-data-table">
+<thead>
+<tr>
+<th>Iter</th>
+<th>R1 Val</th>
+<th>R2 Val</th>
+<th>R3 Val</th>
+<th>R4 Val</th>
+<th>R5 Val</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="Iter">1</td>
+<td data-label="R1 Val">3.800</td>
+<td data-label="R2 Val">3.191</td>
+<td data-label="R3 Val">2.110</td>
+<td data-label="R4 Val">2.397</td>
+<td data-label="R5 Val"><strong>2.210</strong></td>
+<td data-label="Notes">Baseline; R5 lower than R4 despite 2.5× data — rank=64 adapter fits better</td>
+</tr>
+<tr>
+<td data-label="Iter">25</td>
+<td data-label="R1 Val">1.020</td>
+<td data-label="R2 Val">0.580</td>
+<td data-label="R3 Val">0.238</td>
+<td data-label="R4 Val">0.480</td>
+<td data-label="R5 Val">—</td>
+<td data-label="Notes"></td>
+</tr>
+<tr>
+<td data-label="Iter">50</td>
+<td data-label="R1 Val">0.740</td>
+<td data-label="R2 Val">0.533</td>
+<td data-label="R3 Val">0.145</td>
+<td data-label="R4 Val">0.277</td>
+<td data-label="R5 Val">—</td>
+<td data-label="Notes">R3 already below R2's best</td>
+</tr>
+<tr>
+<td data-label="Iter">75</td>
+<td data-label="R1 Val">0.630</td>
+<td data-label="R2 Val">0.527</td>
+<td data-label="R3 Val">0.122</td>
+<td data-label="R4 Val">0.200</td>
+<td data-label="R5 Val">—</td>
+<td data-label="Notes"></td>
+</tr>
+<tr>
+<td data-label="Iter">100</td>
+<td data-label="R1 Val">0.580</td>
+<td data-label="R2 Val">0.495</td>
+<td data-label="R3 Val">0.110</td>
+<td data-label="R4 Val">0.146</td>
+<td data-label="R5 Val">—</td>
+<td data-label="Notes">R3 battery shutdown; resumed from here</td>
+</tr>
+<tr>
+<td data-label="Iter">200</td>
+<td data-label="R1 Val">0.490</td>
+<td data-label="R2 Val">0.449</td>
+<td data-label="R3 Val">0.116</td>
+<td data-label="R4 Val">0.109</td>
+<td data-label="R5 Val">—</td>
+<td data-label="Notes"></td>
+</tr>
+<tr>
+<td data-label="Iter">300</td>
+<td data-label="R1 Val">0.440</td>
+<td data-label="R2 Val">0.416</td>
+<td data-label="R3 Val">0.076</td>
+<td data-label="R4 Val">0.082</td>
+<td data-label="R5 Val">—</td>
+<td data-label="Notes"></td>
+</tr>
+<tr>
+<td data-label="Iter">400</td>
+<td data-label="R1 Val">0.420</td>
+<td data-label="R2 Val">0.400</td>
+<td data-label="R3 Val">0.059</td>
+<td data-label="R4 Val">0.074</td>
+<td data-label="R5 Val">—</td>
+<td data-label="Notes"></td>
+</tr>
+<tr>
+<td data-label="Iter">500</td>
+<td data-label="R1 Val">0.405</td>
+<td data-label="R2 Val">0.375</td>
+<td data-label="R3 Val">0.060</td>
+<td data-label="R4 Val">0.071</td>
+<td data-label="R5 Val">—</td>
+<td data-label="Notes"></td>
+</tr>
+<tr>
+<td data-label="Iter">600</td>
+<td data-label="R1 Val">0.395</td>
+<td data-label="R2 Val">0.359</td>
+<td data-label="R3 Val">0.060</td>
+<td data-label="R4 Val">0.059</td>
+<td data-label="R5 Val">—</td>
+<td data-label="Notes">R4 matches R3's best</td>
+</tr>
+<tr>
+<td data-label="Iter">625</td>
+<td data-label="R1 Val">—</td>
+<td data-label="R2 Val">—</td>
+<td data-label="R3 Val"><strong>0.054</strong></td>
+<td data-label="R4 Val">0.055</td>
+<td data-label="R5 Val">—</td>
+<td data-label="Notes"><strong>Best R3 checkpoint (fused)</strong></td>
+</tr>
+<tr>
+<td data-label="Iter">650</td>
+<td data-label="R1 Val">—</td>
+<td data-label="R2 Val">—</td>
+<td data-label="R3 Val">—</td>
+<td data-label="R4 Val">0.052</td>
+<td data-label="R5 Val">—</td>
+<td data-label="Notes">R4 beats R3 best</td>
+</tr>
+<tr>
+<td data-label="Iter">675</td>
+<td data-label="R1 Val"><strong>0.389</strong></td>
+<td data-label="R2 Val"><strong>0.347</strong></td>
+<td data-label="R3 Val">—</td>
+<td data-label="R4 Val">0.069</td>
+<td data-label="R5 Val">—</td>
+<td data-label="Notes">Best R1/R2 checkpoint</td>
+</tr>
+<tr>
+<td data-label="Iter">700</td>
+<td data-label="R1 Val">0.390</td>
+<td data-label="R2 Val">0.372</td>
+<td data-label="R3 Val">—</td>
+<td data-label="R4 Val">0.058</td>
+<td data-label="R5 Val">—</td>
+<td data-label="Notes"></td>
+</tr>
+<tr>
+<td data-label="Iter">750</td>
+<td data-label="R1 Val">—</td>
+<td data-label="R2 Val">—</td>
+<td data-label="R3 Val">—</td>
+<td data-label="R4 Val">0.056</td>
+<td data-label="R5 Val">—</td>
+<td data-label="Notes"></td>
+</tr>
+<tr>
+<td data-label="Iter">775</td>
+<td data-label="R1 Val">—</td>
+<td data-label="R2 Val">—</td>
+<td data-label="R3 Val">—</td>
+<td data-label="R4 Val">0.049</td>
+<td data-label="R5 Val">—</td>
+<td data-label="Notes"></td>
+</tr>
+<tr>
+<td data-label="Iter">800</td>
+<td data-label="R1 Val">—</td>
+<td data-label="R2 Val">—</td>
+<td data-label="R3 Val">—</td>
+<td data-label="R4 Val">0.051</td>
+<td data-label="R5 Val">—</td>
+<td data-label="Notes"></td>
+</tr>
+<tr>
+<td data-label="Iter">950</td>
+<td data-label="R1 Val">—</td>
+<td data-label="R2 Val">—</td>
+<td data-label="R3 Val">—</td>
+<td data-label="R4 Val"><strong>0.041</strong></td>
+<td data-label="R5 Val">—</td>
+<td data-label="Notes"><strong>Best R4 checkpoint (fused)</strong></td>
+</tr>
+<tr>
+<td data-label="Iter">1000</td>
+<td data-label="R1 Val">—</td>
+<td data-label="R2 Val">—</td>
+<td data-label="R3 Val">—</td>
+<td data-label="R4 Val">0.043</td>
+<td data-label="R5 Val">—</td>
+<td data-label="Notes"></td>
+</tr>
+<tr>
+<td data-label="Iter">1100</td>
+<td data-label="R1 Val">—</td>
+<td data-label="R2 Val">—</td>
+<td data-label="R3 Val">—</td>
+<td data-label="R4 Val">0.043</td>
+<td data-label="R5 Val">—</td>
+<td data-label="Notes"></td>
+</tr>
+<tr>
+<td data-label="Iter">1425</td>
+<td data-label="R1 Val">—</td>
+<td data-label="R2 Val">—</td>
+<td data-label="R3 Val">—</td>
+<td data-label="R4 Val"><strong>0.041</strong></td>
+<td data-label="R5 Val">—</td>
+<td data-label="Notes">Ties R4 best at iter 950</td>
+</tr>
+<tr>
+<td data-label="Iter">1500</td>
+<td data-label="R1 Val">—</td>
+<td data-label="R2 Val">—</td>
+<td data-label="R3 Val">—</td>
+<td data-label="R4 Val">0.050</td>
+<td data-label="R5 Val">—</td>
+<td data-label="Notes">R4 final iter</td>
+</tr>
+<tr>
+<td data-label="Iter">1600</td>
+<td data-label="R1 Val">—</td>
+<td data-label="R2 Val">—</td>
+<td data-label="R3 Val">—</td>
+<td data-label="R4 Val">—</td>
+<td data-label="R5 Val"><strong>0.055</strong></td>
+<td data-label="Notes"><strong>Best R5 checkpoint (fused)</strong></td>
+</tr>
+<tr>
+<td data-label="Iter">2000</td>
+<td data-label="R1 Val">—</td>
+<td data-label="R2 Val">—</td>
+<td data-label="R3 Val">—</td>
+<td data-label="R4 Val">—</td>
+<td data-label="R5 Val">0.061</td>
+<td data-label="Notes">R5 early stop</td>
+</tr>
+</tbody>
+</table></div>
+<p>Round 3 val loss (<strong>0.054</strong>) is <strong>6.4x better</strong> than Round 2 (0.347) and <strong>7.2x better</strong> than Round 1 (0.389). The improvement is driven by dataset quality (19 behaviour classes with code-heavy examples) and 3.3x more training data (4,000 vs 1,200 examples). Round 3 was stopped early at iter 625 of 1,500 after val loss plateaued.</p>
+<p>Round 4 <strong>completed 2026-06-27</strong> (1,500 iters, ~43 h). Best val loss: <strong>0.041</strong> at iter 950, beating R3's best of 0.054 by <strong>24%</strong>. The best was also tied at iter 1,425. Fused from iter 950 checkpoint into <code>models/chem_sage_32b_v4/</code> (~17.2 GB). Peak memory 25.5 GB, 32 adapted layers, 134M trainable parameters (0.41%).</p>
+<p>Round 5 <strong>early-stopped 2026-06-29</strong> at iter 2000 of 3,000. Val loss plateaued at 0.055 from iter 1600 (true best 0.054 at iters 1650 and 1950, but fell between checkpoint saves). Fused from iter 1600 checkpoint into <code>models/chem_sage_32b_v5/</code> (~17.2 GB). Higher floor than R4 (0.055 vs 0.041) reflects the harder task: 78 behaviour classes vs 59, 20k examples vs 6.4k.</p>
+<h3>🧪 Evaluation results</h3>
+<h4>Original scorecard eval (per-round, <code>eval/eval_chem.py</code>)</h4>
+<div class="emd-table-wrap"><table class="emd-data-table">
+<thead>
+<tr>
+<th>Metric</th>
+<th>Round 1 (7B)</th>
+<th>Round 2 (32B)</th>
+<th>Round 3 (32B)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="Metric">SMILES validity</td>
+<td data-label="Round 1 (7B)">0/0 (n/a)</td>
+<td data-label="Round 2 (32B)">25/25 (100%)</td>
+<td data-label="Round 3 (32B)"><strong>494/499 (99%)</strong></td>
+</tr>
+<tr>
+<td data-label="Metric">Tool executability</td>
+<td data-label="Round 1 (7B)">0/8 (0%)</td>
+<td data-label="Round 2 (32B)">72/174 (41%)</td>
+<td data-label="Round 3 (32B)"><strong>437/442 (99%)</strong></td>
+</tr>
+<tr>
+<td data-label="Metric">Numerical fidelity</td>
+<td data-label="Round 1 (7B)">0/0 (n/a)</td>
+<td data-label="Round 2 (32B)">7/73 (10%)</td>
+<td data-label="Round 3 (32B)"><strong>363/533 (68%)</strong></td>
+</tr>
+<tr>
+<td data-label="Metric">Code blocks generated</td>
+<td data-label="Round 1 (7B)">8</td>
+<td data-label="Round 2 (32B)">174</td>
+<td data-label="Round 3 (32B)">442</td>
+</tr>
+<tr>
+<td data-label="Metric"><strong>Overall</strong></td>
+<td data-label="Round 1 (7B)"><strong>0%</strong></td>
+<td data-label="Round 2 (32B)"><strong>51%</strong></td>
+<td data-label="Round 3 (32B)"><strong>89%</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>Scorecard files: <code>eval/scorecards/scorecard_r1_7b.html</code>, <code>scorecard_r2_32b.html</code>, <code>scorecard_r3_32b_v2.html</code>.</p>
+<h4>Comparative eval — all 5 rounds (2026-06-29, <code>eval/compare/eval_compare.py</code>)</h4>
+<p>100 shared R5 test examples (seed=42). Full report: <code>eval/compare/results/compare_20260629_1928.html</code>.</p>
+<p>Scores: per-example pass/fail (examples where all instances correct / 100). Metrics degrade gracefully to <code>N/A</code> when a metric's trigger type never appears in a model's responses.</p>
+<div class="emd-table-wrap"><table class="emd-data-table">
+<thead>
+<tr>
+<th>Metric</th>
+<th>Round 1</th>
+<th>Round 2</th>
+<th>Round 3</th>
+<th>Round 4</th>
+<th><strong>Round 5</strong></th>
+<th>Δ vs R4</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="Metric">SMILES validity</td>
+<td data-label="Round 1">100%</td>
+<td data-label="Round 2">100%</td>
+<td data-label="Round 3">100%</td>
+<td data-label="Round 4">100%</td>
+<td data-label="Round 5"><strong>100%</strong></td>
+<td data-label="Δ vs R4">+0%</td>
+</tr>
+<tr>
+<td data-label="Metric">SMARTS validity</td>
+<td data-label="Round 1">N/A</td>
+<td data-label="Round 2">0%</td>
+<td data-label="Round 3">100%</td>
+<td data-label="Round 4">55%</td>
+<td data-label="Round 5"><strong>100%</strong></td>
+<td data-label="Δ vs R4">+45%</td>
+</tr>
+<tr>
+<td data-label="Metric">Tool executability</td>
+<td data-label="Round 1">0%</td>
+<td data-label="Round 2">28%</td>
+<td data-label="Round 3">79%</td>
+<td data-label="Round 4">71%</td>
+<td data-label="Round 5"><strong>95%</strong></td>
+<td data-label="Δ vs R4">+24%</td>
+</tr>
+<tr>
+<td data-label="Metric">Code attempted</td>
+<td data-label="Round 1">14%</td>
+<td data-label="Round 2">41%</td>
+<td data-label="Round 3">100%</td>
+<td data-label="Round 4">97%</td>
+<td data-label="Round 5"><strong>100%</strong></td>
+<td data-label="Δ vs R4">+3%</td>
+</tr>
+<tr>
+<td data-label="Metric">Python exec (extended)</td>
+<td data-label="Round 1">36%</td>
+<td data-label="Round 2">34%</td>
+<td data-label="Round 3">78%</td>
+<td data-label="Round 4">69%</td>
+<td data-label="Round 5"><strong>99%</strong></td>
+<td data-label="Δ vs R4">+30%</td>
+</tr>
+<tr>
+<td data-label="Metric">Code→Quote fidelity</td>
+<td data-label="Round 1">N/A</td>
+<td data-label="Round 2">0%</td>
+<td data-label="Round 3">47%</td>
+<td data-label="Round 4">19%</td>
+<td data-label="Round 5"><strong>61%</strong></td>
+<td data-label="Δ vs R4">+42%</td>
+</tr>
+<tr>
+<td data-label="Metric">Numerical fidelity</td>
+<td data-label="Round 1">N/A</td>
+<td data-label="Round 2">18%</td>
+<td data-label="Round 3">57%</td>
+<td data-label="Round 4">47%</td>
+<td data-label="Round 5"><strong>89%</strong></td>
+<td data-label="Δ vs R4">+42%</td>
+</tr>
+<tr>
+<td data-label="Metric">Rounding precision</td>
+<td data-label="Round 1">100%</td>
+<td data-label="Round 2">100%</td>
+<td data-label="Round 3">98%</td>
+<td data-label="Round 4">98%</td>
+<td data-label="Round 5"><strong>99%</strong></td>
+<td data-label="Δ vs R4">+1%</td>
+</tr>
+<tr>
+<td data-label="Metric">Refusal accuracy</td>
+<td data-label="Round 1">98%</td>
+<td data-label="Round 2">98%</td>
+<td data-label="Round 3">97%</td>
+<td data-label="Round 4">98%</td>
+<td data-label="Round 5"><strong>100%</strong></td>
+<td data-label="Δ vs R4">+2%</td>
+</tr>
+<tr>
+<td data-label="Metric">QED range</td>
+<td data-label="Round 1">100%</td>
+<td data-label="Round 2">100%</td>
+<td data-label="Round 3">100%</td>
+<td data-label="Round 4">100%</td>
+<td data-label="Round 5"><strong>100%</strong></td>
+<td data-label="Δ vs R4">+0%</td>
+</tr>
+<tr>
+<td data-label="Metric">PDB ID validity</td>
+<td data-label="Round 1">100%</td>
+<td data-label="Round 2">100%</td>
+<td data-label="Round 3">100%</td>
+<td data-label="Round 4">100%</td>
+<td data-label="Round 5"><strong>100%</strong></td>
+<td data-label="Δ vs R4">+0%</td>
+</tr>
+<tr>
+<td data-label="Metric">PyMOL syntax</td>
+<td data-label="Round 1">77%</td>
+<td data-label="Round 2">97%</td>
+<td data-label="Round 3">89%</td>
+<td data-label="Round 4">89%</td>
+<td data-label="Round 5"><strong>90%</strong></td>
+<td data-label="Δ vs R4">+1%</td>
+</tr>
+<tr>
+<td data-label="Metric">Degeneration-free</td>
+<td data-label="Round 1">93%</td>
+<td data-label="Round 2">96%</td>
+<td data-label="Round 3">91%</td>
+<td data-label="Round 4">98%</td>
+<td data-label="Round 5"><strong>100%</strong></td>
+<td data-label="Δ vs R4">+2%</td>
+</tr>
+<tr>
+<td data-label="Metric"><strong>Overall</strong></td>
+<td data-label="Round 1"><strong>72%</strong></td>
+<td data-label="Round 2"><strong>63%</strong></td>
+<td data-label="Round 3"><strong>87%</strong></td>
+<td data-label="Round 4"><strong>80%</strong></td>
+<td data-label="Round 5"><strong>95%</strong></td>
+<td data-label="Δ vs R4"><strong>+15%</strong></td>
+</tr>
+</tbody>
+</table></div>
+<p>R5 wins on all exec/fidelity targets: <strong>exec +24%</strong>, <strong>PyExec +30%</strong>, <strong>fidelity +42%</strong>, <strong>Code→Quote +42%</strong>, <strong>SMARTS +45%</strong>, <strong>Degeneration-free 100%</strong>, <strong>Refusal 100%</strong>.</p>
+<p>The R4 exec regression vs R3 (71% vs 79%) was caused by dataset distribution shift towards structural biology content that reduced the density of pure-RDKit drills. R5 corrected this with <code>pyexec_drill</code> (×6), <code>code_then_quote_v2</code> (×5), and <code>fidelity_multistep</code> (×5) generators.</p>
+<h2>📚 RAG corpus</h2>
+<p>The <code>data/corpus/</code> directory contains the full retrieval knowledge base: tool reference docs plus two databases of experimental chemistry data:</p>
+<h3>📚 ChEMBL (<code>data/corpus/chembl/</code>, ~70 MB)</h3>
+<div class="emd-table-wrap"><table class="emd-data-table">
+<thead>
+<tr>
+<th>File</th>
+<th>Records</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="File"><code>approved_drugs.csv</code></td>
+<td data-label="Records">3,257</td>
+<td data-label="Contents">All FDA/EMA approved small molecules with SMILES + properties</td>
+</tr>
+<tr>
+<td data-label="File"><code>bioactivity_key_targets.csv</code></td>
+<td data-label="Records">112,357</td>
+<td data-label="Contents">IC50/Ki/Kd for EGFR, CDK2, HIV protease, SARS-CoV-2 3CLpro, VEGFR2, Bcr-Abl, COX-2, BRAF, ALK, JAK1/2, hERG</td>
+</tr>
+<tr>
+<td data-label="File"><code>bioactivity_extended_targets.csv</code></td>
+<td data-label="Records">~200k</td>
+<td data-label="Contents">IC50/Ki for 36 additional targets: BTK, PARP1, CDK4/6, FLT3, mTOR, AKT1, PI3Ka, RET, MET, SRC, HDAC1, BRD4, EZH2, AR, ERa, PPARg, GLP-1R, Factor Xa, Thrombin, ACE, HMG-CoA, PDE5, DHFR, IDH1/2, KRAS + more</td>
+</tr>
+<tr>
+<td data-label="File"><code>admet_data.csv</code></td>
+<td data-label="Records">~50k</td>
+<td data-label="Contents">Caco-2 permeability, CLint, t1/2, fu,plasma, solubility, logD, CYP3A4/2D6/2C9/1A2/2C19 inhibition</td>
+</tr>
+<tr>
+<td data-label="File"><code>clinical_candidates_phase2_3.csv</code></td>
+<td data-label="Records">~10k</td>
+<td data-label="Contents">Phase 2-3 small molecules with properties</td>
+</tr>
+<tr>
+<td data-label="File"><code>fragment_actives.csv</code></td>
+<td data-label="Records">10,000</td>
+<td data-label="Contents">MW &lt; 300 fragments with pIC50 &gt;= 4</td>
+</tr>
+<tr>
+<td data-label="File"><code>natural_products.csv</code></td>
+<td data-label="Records">~5k</td>
+<td data-label="Contents">Natural product-derived compounds</td>
+</tr>
+<tr>
+<td data-label="File"><code>drug_mechanisms.csv</code></td>
+<td data-label="Records">7,561</td>
+<td data-label="Contents">Mechanism of action + target for all drugs</td>
+</tr>
+<tr>
+<td data-label="File"><code>drug_indications.csv</code></td>
+<td data-label="Records">60,055</td>
+<td data-label="Contents">Disease indications for all drugs</td>
+</tr>
+<tr>
+<td data-label="File"><code>atc_classification.csv</code></td>
+<td data-label="Records">5,579</td>
+<td data-label="Contents">Full ATC therapeutic class hierarchy</td>
+</tr>
+</tbody>
+</table></div>
+<h3>📚 PubChem (<code>data/corpus/pubchem/</code>, ~6.6 MB)</h3>
+<div class="emd-table-wrap"><table class="emd-data-table">
+<thead>
+<tr>
+<th>File</th>
+<th>Records</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="File"><code>fda_drugs_with_pubchem_cids.csv</code></td>
+<td data-label="Records">3,257</td>
+<td data-label="Contents">ChEMBL approved drugs cross-referenced to PubChem CIDs</td>
+</tr>
+<tr>
+<td data-label="File"><code>tox21_panel.csv</code></td>
+<td data-label="Records">~90k</td>
+<td data-label="Contents">9 Tox21 nuclear receptor / stress-pathway assays (AhR, AR, ERa, NFkB, Nrf2, MMP, p53, ATAD5, TR)</td>
+</tr>
+<tr>
+<td data-label="File"><code>pkis2_kinase_panel.csv</code></td>
+<td data-label="Records">~50k</td>
+<td data-label="Contents">Published Kinase Inhibitor Set 2: 367-kinase selectivity panel</td>
+</tr>
+<tr>
+<td data-label="File"><code>drug_repurposing_hub.csv</code></td>
+<td data-label="Records">~6k</td>
+<td data-label="Contents">Broad Institute Drug Repurposing Hub clinical annotations</td>
+</tr>
+<tr>
+<td data-label="File"><code>adme_cyp_hts.csv</code></td>
+<td data-label="Records">19,803</td>
+<td data-label="Contents">NCATS Caco-2 permeability, P-gp efflux, CYP2C9 inhibition HTS</td>
+</tr>
+<tr>
+<td data-label="File"><code>bindingdb_affinities.csv</code></td>
+<td data-label="Records">—</td>
+<td data-label="Contents">BindingDB Ki/IC50/Kd (literature-curated)</td>
+</tr>
+<tr>
+<td data-label="File"><code>nci60_gi50.csv</code></td>
+<td data-label="Records">—</td>
+<td data-label="Contents">NCI-60 cancer cell line growth inhibition</td>
+</tr>
+</tbody>
+</table></div>
+<h3>📚 PDB (<code>data/corpus/pdb/</code>, ~111 MB)</h3>
+<div class="emd-table-wrap"><table class="emd-data-table">
+<thead>
+<tr>
+<th>File</th>
+<th>Records</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="File"><code>pdb_all_entries.csv</code></td>
+<td data-label="Records">255,239</td>
+<td data-label="Contents">All PDB structures: ID, method, resolution, compound, organism, deposit date</td>
+</tr>
+<tr>
+<td data-label="File"><code>pdb_ligands_all.csv</code></td>
+<td data-label="Records">16,171</td>
+<td data-label="Contents">All unique PDB ligands with SMILES, InChI, InChIKey, formula, MW, type, ChEMBL/DrugBank/PubChem cross-references</td>
+</tr>
+<tr>
+<td data-label="File"><code>pdb_ligands_druglike.csv</code></td>
+<td data-label="Records">382</td>
+<td data-label="Contents">Drug-like CCD subset (MW 100-800 Da, non-polymer, with SMILES)</td>
+</tr>
+<tr>
+<td data-label="File"><code>pdb_ligand_structure_pairs.csv</code></td>
+<td data-label="Records">121,541</td>
+<td data-label="Contents">Protein-ligand pairs: which ligands are bound in which structures (with resolution + method)</td>
+</tr>
+<tr>
+<td data-label="File"><code>pdb_druglike_structure_pairs.csv</code></td>
+<td data-label="Records">1,671</td>
+<td data-label="Contents">Drug-like protein-ligand pairs only</td>
+</tr>
+<tr>
+<td data-label="File"><code>pdb_binding_affinities.csv</code></td>
+<td data-label="Records">46,885</td>
+<td data-label="Contents">Measured Kd/Ki/IC50 from PDBbind-annotated structures (9,209 entries)</td>
+</tr>
+<tr>
+<td data-label="File"><code>sifts_pdb_uniprot.csv</code></td>
+<td data-label="Records">965,937</td>
+<td data-label="Contents">SIFTS: PDB chain -&gt; UniProt accession (canonical target identity bridge)</td>
+</tr>
+<tr>
+<td data-label="File"><code>sifts_pdb_pfam.csv</code></td>
+<td data-label="Records">1,022,861</td>
+<td data-label="Contents">SIFTS: PDB chain -&gt; Pfam domain family (fold-level annotation)</td>
+</tr>
+</tbody>
+</table></div>
+<h2>📝 Recent changes</h2>
+<h3>chemsage.mdeller.com live (2026-07-22)</h3>
+<ul>
+<li><strong>TLS + nginx</strong> — Let's Encrypt cert issued; nginx serves the xterm.js terminal at <code>https://chemsage.mdeller.com</code> with WebSocket upgrade for <code>/ws</code>; gunicorn gevent worker (<code>-k gevent -w 1</code>) with 300 s timeout for long inference calls; systemd unit auto-restarts on failure.</li>
+<li><strong>HF Space (<code>Dellboy/chem_sage-api</code>) deployed</strong> — Gradio SDK (required for ZeroGPU); <code>@spaces.GPU(duration=180)</code> acquires an A10G on each request, loads the GGUF, collects all tokens, then releases GPU; tokens streamed back to client via SSE. llama-cpp-python installed from pre-built CUDA 12.1 wheel (<code>--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu121</code>).</li>
+<li><strong><code>chat_remote.py</code> path detection</strong> — robust dual-layout detection: finds <code>chat.py</code> at <code>chem_sage/scripts/</code> in the repo or <code>/opt/chem_sage_scripts/</code> on the droplet; <code>--no-rag</code> injected to skip ChromaDB and sentence-transformers on the 3.8 GB droplet.</li>
+<li><strong>mdeller.com hub updated</strong> — ChemSage entry in <code>apps.json</code> points to <code>chemsage.mdeller.com</code>; deployed via <code>mdeller-landing/deploy.sh</code>.</li>
+<li><strong>Deploy scripts</strong> — <code>web/flask_app/deploy/provision.sh</code> (one-time), <code>deploy.sh</code> (idempotent rsync + restart), <code>nginx-chemsage.conf</code>, <code>chemsage-web.service</code>.</li>
+</ul>
+<h3>Web deployment: chemsage.mdeller.com (2026-07-22)</h3>
+<ul>
+<li><strong>GGUF conversion pipeline</strong> — MLX 4-bit fused model (<code>models/chem_sage_32b_v5/</code>) converted to Q4_K_M GGUF (18 GB) in three steps: dequantise to BF16 safetensors (<code>mlx_lm.convert --dequantize</code>), convert to F16 GGUF (<code>convert_hf_to_gguf.py</code> from llama.cpp), quantise to Q4_K_M (<code>llama-quantize</code>). Requires a Python 3.12 venv — Python 3.14 stdlib shadows <code>typing_extensions</code>, breaking mlx-lm and transformers installs.</li>
+<li><strong>HF Space inference backend (<code>web/hf_space/</code>)</strong> — FastAPI + llama-cpp-python (CUDA build via <code>CMAKE_ARGS="-DGGML_CUDA=on"</code>) served on ZeroGPU (shared A10G, 24 GB VRAM). <code>@spaces.GPU</code> decorator acquires the GPU per inference call; streams SSE tokens from <code>/generate</code>. Deployed as <code>sdk: docker</code>, <code>app_port: 7860</code>.</li>
+<li><strong>Flask xterm.js web app (<code>web/flask_app/</code>)</strong> — each browser session gets an xterm.js v5.3.0 terminal backed by a <code>pty.openpty()</code> subprocess. <code>chat_remote.py</code> injects a fake <code>mlx_lm</code> module (plus <code>mlx.core</code>) into <code>sys.modules</code> before <code>chat.py</code> imports; the fake <code>stream_generate</code> calls the HF Space <code>/generate</code> SSE endpoint. The real <code>chat.py</code> runs completely unchanged — all Rich output, slash commands, corpus tables, and RAG behaviour are identical to the local CLI. Dark ChemSage theme: background <code>#0d1117</code>, cursor <code>#00d4ff</code>.</li>
+<li><strong>GGUF model published</strong> — <code>Dellboy/chem_sage_32b_v5-GGUF</code> on HuggingFace Hub.</li>
+</ul>
+<h3>Chat CLI and dependency fixes (2026-06-30)</h3>
+<ul>
+<li><strong>mlx-lm 0.31.3 API fix (<code>scripts/chat.py</code>):</strong> <code>stream_generate()</code> and <code>generate()</code> no longer accept <code>verbose=False</code> as a keyword argument — removed from both call sites.</li>
+<li><strong>Corpus fast-path (<code>rag/corpus_lookup.py</code>):</strong> Added <code>"get"</code> to the lookup trigger words so queries like <code>"get all EGFR structures"</code> route directly to the corpus table view instead of falling through to the LLM.</li>
+<li><strong>System prompt (<code>scripts/chat.py</code>):</strong> Added explicit instruction to render retrieved structured data (PDB structures, bioactivity measurements) as markdown tables rather than generating external API code.</li>
+<li><strong>Dependencies (<code>requirements.txt</code>):</strong> Added <code>torch</code> explicitly (required by <code>sentence-transformers</code> for local embeddings).</li>
+<li><strong>How to run:</strong> Added quick-start run instructions to the main README — single terminal, venv python, <code>--no-rag</code> flag for model-only mode.</li>
+<li><strong>All 5 models published to HuggingFace Hub</strong> (<code>Dellboy/chem_sage_*</code>).</li>
+</ul>
+<h3>🧪 Eval harness fixes and 5-round comparative eval (2026-06-29)</h3>
+<p><strong>Tokenizer fix (all models):</strong>
+- <code>tokenizer_config.json</code> in <code>chem_sage_7b_v1</code>, <code>chem_sage_32b_v2</code>, <code>chem_sage_32b_v3</code>, <code>chem_sage_32b_v4</code> had <code>extra_special_tokens</code> as a JSON list of strings. Newer <code>transformers</code> calls <code>.keys()</code> on this field — causing an <code>AttributeError</code> on load. The server silently swallowed the error, loaded a broken tokenizer, and then hung indefinitely on every inference request (all queries timed out). Fixed by converting to an empty dict <code>{}</code> in all four files. <code>chem_sage_32b_v5</code> was already in the correct format.</p>
+<p><strong>Eval harness model-path fix (<code>eval/compare/eval_compare.py</code>):</strong>
+- <code>query_model()</code> previously sent <code>"model": "chemsage"</code> in every HTTP POST to the local <code>mlx_lm.server</code>. Since <code>mlx_lm</code> 0.31.3, an unknown model name triggers a 120-second HuggingFace lazy-load timeout, causing all R1–R4 evals to time out. Fixed by passing the full local model directory path (<code>model_path</code>) as the <code>"model"</code> field.</p>
+<p><strong>Per-example pass/fail scoring:</strong>
+- Changed the eval metric methodology throughout <code>eval_compare.py</code> from per-instance accuracy (<code>ok / total_attempts</code>) to per-example pass/fail (<code>passed_examples / 100</code>). An example "passes" a metric if every instance in that response is correct (<code>ok == tot</code>, <code>tot &gt; 0</code>). This makes round-over-round comparisons meaningful: R1 calling 2 SMILES correctly is no longer the same score as R3 calling 100 SMILES correctly. The <code>_per_example_agg()</code> helper re-derives this from <code>results[].scores</code> in <code>raw_results.json</code>.</p>
+<p><strong>5-round comparative eval (complete, 2026-06-29):</strong>
+- All 5 rounds evaluated on 100 shared R5 test examples (seed=42). Full report: <code>eval/compare/results/compare_20260629_1928.html</code>. R5 overall 95% (vs R4 80%, R3 87%). R5 wins on exec (+24%), PyExec (+30%), fidelity (+42%), SMARTS (+45%). All README eval tables updated.</p>
+<h3>🎓 Round 5: Higher rank + 2.5× corpus (2026-06-28, training in progress)</h3>
+<ul>
+<li>Expanded SFT dataset from 8,000 to <strong>20,000 examples</strong> (16,000 train / 2,000 val / 2,000 test) across <strong>78 behaviour classes</strong> (19 new vs R4)</li>
+<li>Raised LoRA rank to <strong>64</strong> (from 32); scale set to <strong>90.0</strong> (RSLoRA effective alpha ≈ 11.25, same order as R4); trainable parameters <strong>doubled to 268M (0.82%)</strong></li>
+<li>Extended <code>max_seq_length</code> to <strong>3,072</strong> (from 2,048); all corpus examples fit (p99=488, max=558 tokens)</li>
+<li>Tripled training iters to <strong>3,000</strong>; doubled <code>val_batches</code> to 50 for a more stable eval signal</li>
+<li>New generators targeting R4 exec/PyExec gap and numerical fidelity: <code>pyexec_drill</code> (×6), <code>code_then_quote_v2</code> (×5), <code>rounding_explicit</code> (×5), <code>fidelity_multistep</code> (×5)</li>
+<li>New content generators: <code>herg_liability</code>, <code>selectivity_profile</code>, <code>prodrug_bcs</code>, <code>sar_delta</code>, <code>mdanalysis</code>, <code>dssp</code>, <code>ppi_interface</code>, <code>uniprot_api</code>, <code>conformer_3d</code>, <code>mcs_search</code>, <code>reaction_smarts</code>, <code>recap_fragmentation</code>, <code>electron_density</code>, <code>biological_assembly</code>, <code>drug_target_family</code> (×3-4 each)</li>
+<li>707 examples rejected during validation (96.5% pass rate); token lengths all under max_seq_length (p99=488)</li>
+<li>Training launched 2026-06-28 with <code>caffeinate -i</code> under single-process MLX launch (<code>/tmp/r5_launch.py</code>) — memory limits set in-process before importing mlx_lm; cache 16.7 GB / memory limit 50.1 GB</li>
+<li><strong>Iter 1 val loss: 2.210</strong> (lower than R4's 2.397 — rank=64 adapter has more capacity from the start)</li>
+<li>Config: <code>config/train_config_r5.yaml</code>; adapter path: <code>adapters/chem_sage_32b_v5_lora/</code></li>
+<li><strong>Early stop at iter 2000</strong> — val loss plateaued at 0.055 from iter 1600; fused from iter 1600 checkpoint into <code>models/chem_sage_32b_v5/</code> (~17.2 GB)</li>
+</ul>
+<h3>🎓 Round 4: Expanded dataset training (2026-06-25 to 2026-06-27, complete)</h3>
+<ul>
+<li>Expanded SFT dataset from 5,000 to 8,000 examples (6,400 train / 800 val / 800 test) across 59 behaviour classes</li>
+<li>New behaviour classes: drug mechanisms/indications/ATC, multi-step reasoning, refusals, personality, structural biology, docking, visualisation (Plotly, R/ggplot2), numerical fidelity drills (<code>code_then_quote</code>, <code>rounding_precision</code>)</li>
+<li><code>steps_per_report</code> aligned with <code>steps_per_eval</code> (both 25) so train/val loss appear at the same iters</li>
+<li>Training ran to completion: 1,500 iters, ~43 h (2026-06-25 15:39 to 2026-06-27 10:59 BST)</li>
+<li><strong>Best val loss: 0.041 at iter 950</strong> — beats R3's all-time best of 0.054 by <strong>24%</strong> (tied at iter 1425)</li>
+<li>Peak memory 25.5 GB, 32 adapted layers, 134M trainable parameters (0.41%)</li>
+<li>Fused from iter 950 checkpoint into <code>models/chem_sage_32b_v4/</code> (~17.2 GB, 4 safetensors shards)</li>
+</ul>
+<h3>🧪 Comparative eval harness (2026-06-26)</h3>
+<p>New script <code>eval/compare/eval_compare.py</code> runs all 4 model rounds side-by-side on the same 100 R4 test examples and produces a rich HTML + Markdown comparison report.</p>
+<p><strong>Features:</strong>
+- <strong>Option A auto-server</strong>: spawns and kills <code>mlx_lm.server</code> per model automatically (no manual terminal juggling); health-checks the OpenAI-compatible endpoint before starting eval; sends SIGTERM to the process group on completion
+- <strong>Shared examples</strong>: 100 examples sampled from the R4 test set with a fixed seed (reproducible)
+- <strong>All 13 metrics</strong>: 3 core + 7 new metrics, all reporting <code>n/a</code> gracefully on older models
+- <strong>R3 as baseline</strong>: metric table includes a Δ column (±%) vs Round 3; colour-coded green/red
+- <strong>Model profile panel</strong>: full spec comparison across architecture, training config, training outcomes, corpus, and eval runtime
+- <strong>Runtime resource stats</strong>: server process CPU mean/peak %, RSS mean/peak GB (via <code>psutil</code>), mean latency (s), throughput (tok/s)
+- <strong>Validation loss curves</strong>: SVG comparison chart of all 4 models' val loss curves (clipped at 0.60; dashed line for estimated curves)
+- <strong>Per-example table</strong>: 100 collapsible rows; click "responses" to see all model outputs side-by-side
+- <strong>Resume flag</strong>: <code>--resume</code> loads <code>raw_results.json</code> cache and skips already-evaluated models
+- <strong>Branding</strong>: ChemSage ASCII art (pyfiglet), clickable <a href="https://marcdeller.com">marcdeller.com</a> links throughout</p>
+<p><strong>Usage</strong> (run after R4 training completes and fuse is done):</p>
+<pre><code class="language-bash">cd chem_sage/
+# Full run — all 4 models
+python eval/compare/eval_compare.py
+
+# Subset and resume
+python eval/compare/eval_compare.py --models round3 round4 --resume
+
+# Quick smoke-test (10 examples)
+python eval/compare/eval_compare.py --limit 10
+</code></pre>
+<p><strong>Config:</strong> <code>eval/compare/models.yaml</code> — all model metadata, loss curves, and training stats in one place; edit to update R4 final values after training.</p>
+<h3>🔗 ChromaDB 1.x compatibility fix (2026-06-25)</h3>
+<ul>
+<li>ChromaDB 1.0+ switched to a Rust connection backend; <code>PersistentClient</code> timed out on databases created with the old Python backend</li>
+<li>Fix: pass <code>Settings(allow_reset=True, anonymized_telemetry=False)</code> to <code>PersistentClient</code> in both <code>rag/retrieve.py</code> and <code>scripts/ingest_rag.py</code></li>
+<li>No data loss, no re-ingest — all 55,742 indexed chunks preserved; confirmed connected and serving queries</li>
+<li>Downgrade to <code>chromadb&lt;1.0.0</code> is not possible on Python 3.14 (no pre-built <code>chroma-hnswlib</code> wheel)</li>
+</ul>
+<h3>📊 Chat CLI: Streaming output and UX polish (2026-06-25)</h3>
+<p><strong>Streaming generation:</strong>
+- Response tokens now stream live to the terminal in real-time using <code>mlx_lm.stream_generate</code> + Rich <code>Live</code>; raw text streams token-by-token during generation, then the final response re-renders as formatted Markdown — no more waiting behind a "Thinking…" spinner
+- Falls back to blocking <code>generate</code> + spinner if <code>stream_generate</code> is unavailable</p>
+<p><strong>New slash commands:</strong>
+- <code>/save</code> — exports the full conversation to a timestamped Markdown file on the Desktop (includes marcdeller.com attribution header)
+- <code>/info</code> — shows a panel with loaded model name/size, training config (iters, RSLoRA rank, lr, ctx), corpus stats (chunks, CSV files, MB), and embed model; clickable hyperlinks to <a href="https://marcdeller.com">marcdeller.com</a> and <a href="mailto:marc@marcdeller.com">marc@marcdeller.com</a>
+- <code>/retry</code> — re-generates the previous response using the same RAG context; replaces the last assistant turn in history</p>
+<p><strong>UX refinements:</strong>
+- <strong>Tab completion</strong>: type <code>/</code> and press Tab for a dropdown of all slash commands; completion menu styled to match the ChemSage colour scheme
+- <strong>RAG retrieval indicator</strong>: <code>🔍 Retrieving context…</code> spinner during retrieval, then <code>📚 N chunks retrieved</code> confirmation line before generation begins
+- <strong>Context window indicator in toolbar</strong>: bottom toolbar now shows <code>ctx N/3</code> alongside the turn counter so you can see how much of the 3-turn context window is filled
+- <strong><code>/reset</code> confirmation</strong>: asks <code>Clear history? [y/N]</code> before wiping — no accidental data loss
+- <strong>Generation stats</strong>: now includes elapsed seconds — <code>⚡ N tok · X.X tok/s · X.Xs</code>
+- <strong>Styled goodbye</strong>: exit via <code>quit</code>/<code>q</code>/Ctrl-C shows a full-screen Panel with the ChemSage ASCII banner, "Thank you for using ChemSage", and clickable links to <a href="https://marcdeller.com">marcdeller.com</a> and <a href="mailto:marc@marcdeller.com">marc@marcdeller.com</a>
+- <strong>Hyperlinks throughout</strong>: banner, <code>/help</code>, <code>/info</code>, <code>/save</code> output, and goodbye Panel all include clickable <code>[link=...]</code> Rich markup pointing to marcdeller.com and marc@marcdeller.com</p>
+<p><strong>Earlier polish (same date):</strong>
+- <code>prompt_toolkit</code> input with arrow-key history and styled <code>You:</code> prompt
+- Persistent bottom toolbar: <code>⬡ ChemSage · model · QLoRA · RAG · turn N · ctx N/3</code>
+- Corpus tables: Rich <code>Table</code> with rounded cyan borders, single-line rows (ellipsis overflow), abbreviated headers, <code>✓</code>/<code>✗</code> booleans, method abbreviations
+- RDKit output in yellow-bordered <code>Panel</code>; retrieval errors in red-bordered <code>Panel</code>
+- Terminal title set to <code>ChemSage</code> on launch and <code>/clear</code>
+- Added <code>rich</code>, <code>prompt_toolkit</code>, <code>pyfiglet</code> to <code>requirements.txt</code></p>
+<h3>🧪 Eval harness: R4 extended metrics (2026-06-25)</h3>
+<p>Extended <code>eval/eval_chem.py</code> with new metrics that degrade gracefully to <code>n/a</code> when run against R1-R3 models/datasets, enabling a clean side-by-side comparison across all rounds:</p>
+<div class="emd-table-wrap"><table class="emd-data-table">
+<thead>
+<tr>
+<th>New metric</th>
+<th>What it measures</th>
+<th>Why added</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td data-label="New metric"><strong>Rounding precision</strong></td>
+<td data-label="What it measures">MW 1 d.p. · logP 2 d.p. · TPSA 1 d.p. · QED 2 d.p.</td>
+<td data-label="Why added">R4 drills exact decimal-place conventions</td>
+</tr>
+<tr>
+<td data-label="New metric"><strong>Code-then-quote</strong></td>
+<td data-label="What it measures">prose values match what code blocks actually printed to stdout</td>
+<td data-label="Why added">Distinguishes quoting own code vs. recalling from memory</td>
+</tr>
+<tr>
+<td data-label="New metric"><strong>Extended executability</strong></td>
+<td data-label="What it measures">all <code>python</code> blocks (RDKit + Plotly + Biopython)</td>
+<td data-label="Why added">R4 adds Plotly and Biopython code generation</td>
+</tr>
+<tr>
+<td data-label="New metric"><strong>Refusal accuracy</strong></td>
+<td data-label="What it measures">out-of-scope prompts correctly declined</td>
+<td data-label="Why added">R4 adds explicit refusal training</td>
+</tr>
+<tr>
+<td data-label="New metric"><strong>QED range</strong></td>
+<td data-label="What it measures">all stated QED values in [0, 1]</td>
+<td data-label="Why added">R4 adds QED computation training</td>
+</tr>
+</tbody>
+</table></div>
+<p>Backwards compatibility: R1-R3 test sets have no refusal examples (refusal shows n/a), no QED mentions (QED shows n/a), code blocks may not print (code-then-quote shows n/a). All five new metrics return <code>(0, 0)</code> when inapplicable. The core 3-metric overall score formula is unchanged for direct cross-round comparison.</p>
+<p>New scorecard features: per-class breakdown table (if test examples carry a <code>class</code> field), overall score card, collapsible response viewer in per-example table, extended exec breakdown by library category, mean latency in header, cleaner terminal summary with n/a annotation.</p>
+<h3>🎓 Round 3: Code-heavy dataset and extended training (2026-06-25)</h3>
+<ul>
+<li>Expanded SFT dataset from 1,500 to 5,000 examples (4,000 train) across 19 behaviour classes</li>
+<li>8 new generator classes targeting eval gaps: <code>single_property</code>, <code>full_profile</code>, <code>qed_score</code>, <code>molecular_formula</code>, <code>smiles_validation</code>, <code>property_comparison</code>, <code>corpus_drug</code>, <code>murcko_sar</code></li>
+<li>51 seed SMILES + ~1,000 corpus drug examples from <code>approved_drugs.csv</code></li>
+<li>Configured for 1,500 iters; stopped early at iter 625 after val loss plateaued at ~0.060</li>
+<li>Best val loss <strong>0.054</strong> at iter 625 (vs 0.347 for Round 2): <strong>6.4x improvement</strong></li>
+<li>Attempted 64 layers (swap thrashing at 31.5 GB) and batch_size=8 (4.5x slower); reverted to 32 layers / batch 4</li>
+<li>Resumed from iter 100 checkpoint after battery shutdown; no data loss</li>
+<li>Eval: SMILES 99%, Exec 99%, Fidelity 68% (vs R2: 100%, 41%, 10%)</li>
+<li>Fused model saved to <code>models/chem_sage_32b_v3/</code> (17 GB)</li>
+</ul>
+<h3>Round 2: Qwen 2.5 32B upgrade (2026-06-24)</h3>
+<ul>
+<li>Upgraded base model from Qwen 2.5 7B to 32B (4-bit, MLX); trained with 32 adapted layers (vs 16 for 7B)</li>
+<li>Best val loss 0.347 at step 675 (vs 0.389 for 7B): 10.8% improvement</li>
+<li>Fused model saved to <code>models/chem_sage_32b_v2/</code> (17 GB); serves on 64 GB Apple Silicon at 24.9 GB peak memory</li>
+<li>Eval shows 100% SMILES validity, 41% tool executability, 10% numerical fidelity (7B scored 0% across the board)</li>
+<li>Added tqdm progress bar and live metrics to <code>eval/eval_chem.py</code></li>
+<li>System prompt injection in eval harness (test examples lack system messages)</li>
+<li>Fixed <code>merge_export.py</code>: uses <code>sys.executable -m mlx_lm fuse</code> (corrected deprecated syntax), resolves adapter path relative to config directory</li>
+</ul>
+<h3>📚 Round 1: Corpus fast-path and chat CLI</h3>
+<ul>
+<li>All 17 corpus CSVs searchable directly from the chat CLI via keyword fast-path (<code>rag/corpus_lookup.py</code>) that bypasses the LLM for enumeration queries</li>
+<li>Up to 500 matching rows loaded per source; pageable in 50-row pages with CSV export</li>
+<li>PDB binding affinity cross-reference: resolves target names to PDB IDs via <code>pdb_all_entries.csv</code></li>
+<li>Deduplication by <code>comp_id</code> sorted by <code>comp_mw</code> descending (highest-MW representative per compound)</li>
+<li>Intent filtering: SMILES/affinity/sequence queries drop irrelevant sources from the menu</li>
+<li><code>_CAPS_STOPWORDS</code> prevents format words ("SMILES") from winning keyword extraction over target names ("EGFR")</li>
+<li>RAG hybrid loop: top-5 corpus chunks per query via ChromaDB (BAAI/bge-base-en-v1.5, 55k chunks)</li>
+<li>RDKit auto-execution of code blocks in model responses</li>
+<li>ASCII art banner (ChemSage, <code>small_slant</code> font), Rich Markdown rendering, Rich <code>Table</code> corpus tables with rounded cyan borders</li>
+<li>Column display config (<code>_COL_CFG</code>) maps all corpus column names to abbreviated headers and per-column max widths; ellipsis overflow keeps all rows single-line</li>
+</ul>
+<h2>🧱 Stack</h2>
+<p>Everything runs locally on <strong>Apple Silicon</strong> via <strong>MLX-LM</strong> (<code>mlx_lm.lora</code> to train, <code>mlx_lm.fuse</code> to merge, <code>mlx_lm.server</code> for an OpenAI-compatible endpoint the GUI talks to). Unified memory means no VRAM wall: 16 GB handles ~8B, 32 GB ~14B, 64 GB ~32B. QLoRA is automatic because the base is a 4-bit MLX model.</p>
+<p>The chat CLI (<code>scripts/chat.py</code>) uses <strong>Rich</strong> for streaming Markdown output (<code>Live</code>), corpus tables (rounded borders, ellipsis overflow, abbreviated headers), panels, progress spinners, and a themed console; <strong>prompt_toolkit</strong> for the interactive input session (arrow-key history, slash-command tab completion, styled prompt, persistent bottom toolbar with context window indicator); <strong>ChromaDB</strong> + <strong>sentence-transformers</strong> for the RAG retrieval layer; and <strong>RDKit</strong> for live chemical property computation. Responses stream token-by-token via <code>mlx_lm.stream_generate</code> and re-render as Markdown on completion. New commands: <code>/save</code> (export conversation to Markdown), <code>/info</code> (session/model details), <code>/retry</code> (regenerate last response).</p>
+<h2>✅ To Do</h2>
+<h3>Completed (Rounds 1-5)</h3>
+<ul class="emd-tasklist">
+<li><span class="emd-check">&#9989;</span> Increase SFT dataset from 1,500 to 5,000 examples with code-heavy generators (Round 3)</li>
+<li><span class="emd-check">&#9989;</span> Add examples that teach "emit RDKit code, don't compute manually" (Round 3: <code>single_property</code>, <code>full_profile</code>)</li>
+<li><span class="emd-check">&#9989;</span> Include SMILES validation examples (Round 3: <code>smiles_validation</code>)</li>
+<li><span class="emd-check">&#9989;</span> Increase <code>iters</code> from 750 to 1,500 (Round 3; stopped early at 625 — val loss plateaued)</li>
+<li><span class="emd-check">&#9989;</span> Try <code>num_layers: 64</code> — caused swap thrashing at 31.5 GB; reverted to 32</li>
+<li><span class="emd-check">&#9989;</span> Try <code>batch_size: 8</code> — 4.5x slower due to memory pressure; reverted to 4</li>
+<li><span class="emd-check">&#9989;</span> Add structural biology generators: PyMOL selections/viz, PLIP, PDB format, pdb-tools, Biopython, ChimeraX, gemmi</li>
+<li><span class="emd-check">&#9989;</span> Add Plotly and R/ggplot2/bio3d recipe generators</li>
+<li><span class="emd-check">&#9989;</span> Add protein family generators: kinases, GPCRs, antibodies, GTPases, cytokines, receptors (real PDB data)</li>
+<li><span class="emd-check">&#9989;</span> Add numerical fidelity drills: <code>code_then_quote</code> (3x), <code>rounding_precision</code> (2x)</li>
+<li><span class="emd-check">&#9989;</span> Add refusal/out-of-scope examples</li>
+<li><span class="emd-check">&#9989;</span> Expand dataset to 8,000 examples across 51 behaviour classes</li>
+</ul>
+<h3>Round 5 dataset (complete)</h3>
+<ul class="emd-tasklist">
+<li><span class="emd-check">&#9989;</span> 20,000 examples across 78 behaviour classes (<code>build_dataset.py --n 20000 --seed 51</code>)</li>
+<li><span class="emd-check">&#9989;</span> 19 new generator classes targeting R4 exec/PyExec gap: <code>pyexec_drill</code> (×6), <code>code_then_quote_v2</code> (×5), <code>rounding_explicit</code> (×5), <code>fidelity_multistep</code> (×5), <code>herg_liability</code>, <code>selectivity_profile</code>, <code>prodrug_bcs</code>, <code>sar_delta</code>, <code>mdanalysis</code>, <code>dssp</code>, <code>ppi_interface</code>, <code>uniprot_api</code>, <code>conformer_3d</code>, <code>mcs_search</code>, <code>reaction_smarts</code>, <code>recap_fragmentation</code>, <code>electron_density</code>, <code>biological_assembly</code>, <code>drug_target_family</code></li>
+<li><span class="emd-check">&#9989;</span> Token lengths p50=322, p99=488, max=558 — all under max_seq_length=3072</li>
+<li><span class="emd-check">&#9989;</span> 707 examples rejected (96.5% pass rate); 78 classes, class balance max:median &lt; 3:1</li>
+<li><span class="emd-check">&#9989;</span> <code>data/sft_r5/</code> — 16,000 train / 2,000 val / 2,000 test</li>
+</ul>
+<h3>🎓 Round 5 training (complete — early stop)</h3>
+<ul class="emd-tasklist">
+<li><span class="emd-check">&#9989;</span> Config: <code>config/train_config_r5.yaml</code> — rank=64, scale=90, iters=3000, max_seq=3072, val_batches=50</li>
+<li><span class="emd-check">&#9989;</span> Launch: single-process <code>caffeinate -i .venv/bin/python /tmp/r5_launch.py</code> (cache 16.7 GB, memory limit 50.1 GB)</li>
+<li><span class="emd-check">&#9989;</span> <strong>Training started 2026-06-28</strong> — Iter 1 val loss 2.210</li>
+<li><span class="emd-check">&#9989;</span> No rank=64 instability — converged normally</li>
+<li><span class="emd-check">&#9989;</span> <strong>Early stop at iter 2000</strong> — val loss plateaued at 0.055 from iter 1600 (best: 0.054 at iters 1650 and 1950, unsaved)</li>
+<li><span class="emd-check">&#9989;</span> Best available checkpoint: iter 1600, val loss <strong>0.055</strong> → copied to <code>adapters.safetensors</code></li>
+<li><span class="emd-check">&#9989;</span> Fused into <code>models/chem_sage_32b_v5/</code> (~17.2 GB)</li>
+<li><span class="emd-check">&#9989;</span> Run <code>eval/compare/eval_compare.py</code> after fuse</li>
+</ul>
+<h3>Round 4 dataset (complete)</h3>
+<ul class="emd-tasklist">
+<li><span class="emd-check">&#9989;</span> 8,000 examples across 59 behaviour classes (<code>build_dataset.py --n 8000 --seed 47</code>)</li>
+<li><span class="emd-check">&#9989;</span> Protein family coverage: kinases (7,687 PDB), antibodies (3,322), GPCRs (103), GTPases (359), cytokines (769), receptors (6,891) — real PDB IDs and ligand SMILES from corpus</li>
+<li><span class="emd-check">&#9989;</span> Numerical fidelity drills: <code>code_then_quote</code> enforces "compute then quote" pattern; <code>rounding_precision</code> teaches MW 1dp, logP 2dp, TPSA 1dp</li>
+<li><span class="emd-check">&#9989;</span> Structural biology: PyMOL selection algebra, visualization recipes, PLIP interaction analysis, PDB format, pdb-tools, Biopython Bio.PDB, ChimeraX, gemmi, structure preparation, docking interpretation</li>
+<li><span class="emd-check">&#9989;</span> Visualization: Plotly Python (scatter, radar), R/ggplot2 (SAR plots), bio3d (RMSD, RMSF)</li>
+<li><span class="emd-check">&#9989;</span> Set <code>steps_per_report: 25</code> to align train/val reporting at same iters</li>
+</ul>
+<h3>🎓 Round 4 training (complete)</h3>
+<ul class="emd-tasklist">
+<li><span class="emd-check">&#9989;</span> <code>num_layers: 32</code> — 48 and 64 layers tested and found too slow (~2 min/iter); 32 is the M1 Max sweet spot</li>
+<li><span class="emd-check">&#9989;</span> Adapter path: <code>adapters/chem_sage_32b_v4_lora</code> (checkpoints saved every 200 iters)</li>
+<li><span class="emd-check">&#9989;</span> Training completed 2026-06-27 10:59 BST — 1,500 iters, ~43 h</li>
+<li><span class="emd-check">&#9989;</span> Best checkpoint: iter 950, val loss <strong>0.041</strong> (also tied at iter 1425)</li>
+<li><span class="emd-check">&#9989;</span> Copied <code>0000950_adapters.safetensors</code> → <code>adapters.safetensors</code></li>
+<li><span class="emd-check">&#9989;</span> Fused into <code>models/chem_sage_32b_v4/</code> (~17.2 GB)</li>
+<li><span class="emd-check">&#9989;</span> Updated <code>eval/compare/models.yaml</code> with final stats and complete val loss curve</li>
+<li><span class="emd-check">&#9989;</span> Raised rank to 64 in Round 5 for more adapter expressivity</li>
+</ul>
+<h3>🧪 Evaluation and model quality</h3>
+<ul class="emd-tasklist">
+<li><span class="emd-check">&#9989;</span> Complete Round 3 eval: SMILES 99%, Exec 99%, Fidelity 68%</li>
+<li><span class="emd-check">&#9989;</span> Comparative eval harness: <code>eval/compare/eval_compare.py</code> with 13 metrics, loss curves, resource stats</li>
+<li><span class="emd-check">&#9989;</span> Comparative eval run after R4 fuse: full 4-round report <code>eval/compare/results/compare_20260627_1753.html</code></li>
+<li><span class="emd-check">&#9989;</span> Run R5 comparative eval after fuse: add Round 5 to <code>eval/compare/models.yaml</code> and run <code>eval_compare.py</code></li>
+<li><span class="emd-check">&#9989;</span> Improve exec/PyExec from R4's 74%/75% to &gt;85% (R5 result: exec 95%, PyExec 99%)</li>
+<li><span class="emd-check">&#11036;</span> Add perplexity benchmark against base (unfine-tuned) 32B</li>
+<li><span class="emd-check">&#11036;</span> Add hallucination rate metric: count invented PDB IDs, ChEMBL IDs, SMILES not in corpus</li>
+</ul>
+<h3>Infrastructure</h3>
+<ul class="emd-tasklist">
+<li><span class="emd-check">&#9989;</span> ChromaDB 1.x fix: <code>allow_reset=True</code> in <code>rag/retrieve.py</code> and <code>scripts/ingest_rag.py</code> — 55,742 chunks preserved, no re-ingest required</li>
+<li><span class="emd-check">&#9989;</span> <code>psutil</code> added to <code>requirements.txt</code> for server process monitoring in comparative eval</li>
+<li><span class="emd-check">&#9989;</span> Set up HuggingFace Hub: all 5 models published at <a href="https://huggingface.co/Dellboy">huggingface.co/Dellboy</a></li>
+<li><span class="emd-check">&#11036;</span> Create <code>scripts/run_eval.sh</code> (start server, wait, run eval, stop server)</li>
+</ul>
+<h3>Publishing and deployment</h3>
+<ul class="emd-tasklist">
+<li><span class="emd-check">&#9989;</span> <strong>GGUF conversion (2026-07-22)</strong> — MLX 4-bit fused model converted to Q4_K_M GGUF (18 GB) via dequantise → F16 GGUF → Q4_K_M; uploading to <code>Dellboy/chem_sage_32b_v5-GGUF</code>.</li>
+<li><span class="emd-check">&#9989;</span> <strong>HuggingFace Space inference backend (<code>Dellboy/chem_sage-api</code>, 2026-07-22)</strong> — Gradio SDK + <code>@spaces.GPU</code> ZeroGPU (A10G); llama-cpp-python CUDA wheel; streams SSE tokens from <code>/generate</code> via custom FastAPI route on <code>demo.app</code>.</li>
+<li><span class="emd-check">&#9989;</span> <strong>xterm.js web app live at <a href="https://chemsage.mdeller.com">chemsage.mdeller.com</a> (2026-07-22)</strong> — Flask + flask-sock gevent PTY server; <code>chat_remote.py</code> patches mlx_lm/mlx.core so the real <code>chat.py</code> runs unchanged; xterm.js v5.3.0 terminal UI; gunicorn + nginx + Let's Encrypt TLS + systemd; mdeller.com hub entry added.</li>
+<li><span class="emd-check">&#11036;</span> <strong>Packaged CLI installer</strong> — publish <code>chat.py</code> as a <code>pipx</code>-installable tool (<code>pyproject.toml</code> entry point); users with a local Qwen 32B model can <code>pipx install chemsage</code> and point it at their own <code>mlx_lm.server</code> endpoint.</li>
+</ul>
+<h3>Round 6 (planned)</h3>
+<p>Ideas to try next, based on learnings from Rounds 1–5:</p>
+<ul class="emd-tasklist">
+<li><span class="emd-check">&#11036;</span> <strong>Weighted class-balanced sampling across all 78 classes.</strong> Distribution shift was the proven cause of the R4 regression (exec 79→71%, SMARTS 100→55%) and SMARTS has swung 100→55→100 across three rounds purely on dataset composition. Lock the fragile metrics by controlling sampling density rather than relying on raw example counts.</li>
+<li><span class="emd-check">&#11036;</span> <strong>Triple the <code>code_then_quote_v2</code> drill.</strong> Code→Quote fidelity moved from 19% (R4) to 61% (R5) but is still the weakest metric by 28 points. The failure mode is copy-fidelity, not reasoning — add examples where the quoted value must byte-match the printed <code>stdout</code> token, including trailing zeros and units, so the model learns to transcribe rather than re-derive.</li>
+<li><span class="emd-check">&#11036;</span> <strong>Add a dedicated <code>pymol_syntax_drill</code> generator.</strong> PyMOL syntax has sat at 89–90% for two rounds and is the lowest structural biology metric. Failures cluster in selection algebra and command chaining — target those specifically rather than adding more generic structural biology classes.</li>
+<li><span class="emd-check">&#11036;</span> <strong>Two-phase curriculum: full run then a short fidelity-focused continuation.</strong> Train the full 78-class dataset to plateau (~1,600 iters, matching R5 pattern), then run a short ~400-iter second phase at lower LR on a weak-metrics-only subset (code→quote, PyMOL, fidelity). Phase 2 is cheap (~7 h) and concentrates remaining capacity on the actual gaps rather than fighting the plateau.</li>
+<li><span class="emd-check">&#11036;</span> <strong>Configure for ~2,000 iters, not 3,000.</strong> R3 stopped at 42% of configured iters, R5 at 67% — both plateaued well before the ceiling. Stop burning 15–20 hours on a flat val curve; redirect that budget into the phase-2 continuation or more dataset quality work.</li>
+<li><span class="emd-check">&#11036;</span> <strong>Try rank 96 (not 128).</strong> The rank 32→64 jump in R5 tracked with the 95% overall score but the val floor rose to 0.055 with 78 classes, suggesting the harder task is capacity-limited. Rank 96 (~400M trainable params) should sit comfortably under the R5 peak of 30.3 GB; skip rank 128 to avoid swap risk on 64 GB unified memory.</li>
+<li><span class="emd-check">&#11036;</span> <strong>Extend <code>fidelity_multistep</code> with longer chains and distractor numbers.</strong> Fidelity reached 89%, but the residual 11% is multi-step cases where an intermediate value is transcribed incorrectly. Adding 4–5 step chains with adversarial distractor numbers forces the model to track which value to quote rather than defaulting to the largest or last number.</li>
+<li><span class="emd-check">&#11036;</span> <strong>Add per-class eval breakdown and run it on a mid-training checkpoint (~iter 1,000).</strong> R4's exec/SMARTS regression only surfaced after 43 hours of training. A per-class pass/fail on the 100-example shared test set at iter 1,000 would expose class-level dilution early — while there is still time to rebalance the dataset and restart.</li>
+</ul>
+<hr>
+<h2>👤 Author</h2>
+<p><strong>Marc C. Deller, D.Phil.</strong><br>
+Structural biologist &amp; drug discovery scientist  </p>
+<table class="emd-info-table">
+<tr>
+<td>🌐</td><td><a href="https://marcdeller.com" target="_blank" rel="noopener noreferrer">marcdeller.com</a></td>
+<td>✉️</td><td><a href="mailto:marc@marcdeller.com">marc@marcdeller.com</a></td>
+<td>🐙</td><td><a href="https://github.com/bellcheddar/ChemSage" target="_blank" rel="noopener noreferrer">github.com/bellcheddar/ChemSage</a></td>
+</tr>
+</table>

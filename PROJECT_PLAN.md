@@ -6,7 +6,7 @@ medicinal chemist actually uses (RDKit, PyMOL, docking, PLIP), and grounds every
 in the user's own corpus (papers, assay tables, target dossiers, SAR series).
 
 **Author:** Marc C. Deller, D.Phil. ([marcdeller.com](https://marcdeller.com))
-**Status:** Round 5 complete (early stop 2026-06-29 at iter 2000) — best val 0.055 at iter 1600, fused to `models/chem_sage_32b_v5/`. R4 best val **0.041** at iter 950 (24% over R3). 5-round comparative eval complete (R5 overall 95%). Web deployment in progress (2026-07-22): GGUF Q4_K_M (18 GB) converted and uploading to HF; HF Space (ZeroGPU inference) + Flask web app (`chemsage.mdeller.com`) in build.
+**Status:** Round 5 complete (early stop 2026-06-29 at iter 2000) — best val 0.055 at iter 1600, fused to `models/chem_sage_32b_v5/`. R4 best val **0.041** at iter 950 (24% over R3). 5-round comparative eval complete (R5 overall 95%). Web app live at **[chemsage.mdeller.com](https://chemsage.mdeller.com)** (2026-07-22): xterm.js terminal on droplet, inference on HF ZeroGPU Space (`Dellboy/chem_sage-api`); GGUF upload to `Dellboy/chem_sage_32b_v5-GGUF` in progress.
 **Fine-tune stack:** MLX-LM on Apple Silicon (committed; see section 3).
 **Hand-off:** this document is the build brief for Claude Code. Phases are ordered so each one
 is independently testable and delivers value before the next begins.
@@ -343,8 +343,7 @@ the real `chat.py` unchanged.
   subdomain `chemsage.mdeller.com`.
 - Add entry to `mdeller-landing/apps.json` for the mdeller.com hub.
 
-**Exit test:** `https://chemsage.mdeller.com` opens an xterm.js terminal, the ChemSage banner
-and prompt appear, and a chemistry query produces a streamed response via the HF Space GPU.
+**Exit test (complete 2026-07-22):** `https://chemsage.mdeller.com` opens an xterm.js terminal with TLS; the ChemSage banner and prompt appear; chemistry queries stream via the HF Space ZeroGPU A10G. GGUF repo to be made public once upload completes.
 
 ---
 

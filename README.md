@@ -77,7 +77,7 @@ See **[`PROJECT_PLAN.md`](PROJECT_PLAN.md)** for the full step-by-step build (ph
 
 ## 🌐 Web demo
 
-**[chemsage.mdeller.com](https://chemsage.mdeller.com)** — live xterm.js terminal in your browser; no local setup required. Each session connects to the full ChemSage CLI (banner, slash commands, RAG, RDKit execution). Inference runs on a HuggingFace ZeroGPU Space (shared A10G, Q4_K_M GGUF). Availability is best-effort; this is a demo/portfolio piece.
+**[chemsage.mdeller.com](https://chemsage.mdeller.com)** — live xterm.js terminal in your browser; no local setup required. Each session connects to the full ChemSage CLI (banner, slash commands, RDKit execution) running on a DigitalOcean droplet, with inference proxied to a HuggingFace ZeroGPU Space (shared A10G, Q4_K\_M GGUF). First query after idle incurs a ~60-120 s cold start while the GPU allocates. Availability is best-effort; this is a demo/portfolio piece.
 
 ## ▶️ How to run
 
@@ -307,6 +307,14 @@ The `data/corpus/` directory contains the full retrieval knowledge base: tool re
 | `sifts_pdb_pfam.csv` | 1,022,861 | SIFTS: PDB chain -> Pfam domain family (fold-level annotation) |
 
 ## 📝 Recent changes
+
+### chemsage.mdeller.com live (2026-07-22)
+
+- **TLS + nginx** — Let's Encrypt cert issued; nginx serves the xterm.js terminal at `https://chemsage.mdeller.com` with WebSocket upgrade for `/ws`; gunicorn gevent worker (`-k gevent -w 1`) with 300 s timeout for long inference calls; systemd unit auto-restarts on failure.
+- **HF Space (`Dellboy/chem_sage-api`) deployed** — Gradio SDK (required for ZeroGPU); `@spaces.GPU(duration=180)` acquires an A10G on each request, loads the GGUF, collects all tokens, then releases GPU; tokens streamed back to client via SSE. llama-cpp-python installed from pre-built CUDA 12.1 wheel (`--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu121`).
+- **`chat_remote.py` path detection** — robust dual-layout detection: finds `chat.py` at `chem_sage/scripts/` in the repo or `/opt/chem_sage_scripts/` on the droplet; `--no-rag` injected to skip ChromaDB and sentence-transformers on the 3.8 GB droplet.
+- **mdeller.com hub updated** — ChemSage entry in `apps.json` points to `chemsage.mdeller.com`; deployed via `mdeller-landing/deploy.sh`.
+- **Deploy scripts** — `web/flask_app/deploy/provision.sh` (one-time), `deploy.sh` (idempotent rsync + restart), `nginx-chemsage.conf`, `chemsage-web.service`.
 
 ### Web deployment: chemsage.mdeller.com (2026-07-22)
 
@@ -562,9 +570,9 @@ details), `/retry` (regenerate last response).
 - [ ] Create `scripts/run_eval.sh` (start server, wait, run eval, stop server)
 
 ### Publishing and deployment
-- [x] **GGUF conversion (2026-07-22)** — MLX 4-bit fused model converted to Q4_K_M GGUF (18 GB) via dequantise → F16 GGUF → Q4_K_M; uploaded to `Dellboy/chem_sage_32b_v5-GGUF`.
-- [x] **HuggingFace Space inference backend (`Dellboy/chem_sage-api`, 2026-07-22)** — FastAPI + llama-cpp-python (CUDA build) + `@spaces.GPU` ZeroGPU decorator; streams SSE tokens from `/generate`; Dockerfile in `web/hf_space/`.
-- [ ] **xterm.js web app on chemsage.mdeller.com** — Flask + flask-sock PTY server (`web/flask_app/`); `chat_remote.py` patches mlx_lm/mlx.core so the real `chat.py` runs unchanged against the HF Space API; xterm.js v5.3.0 terminal UI; deploy with gunicorn + nginx + systemd; add to mdeller.com hub.
+- [x] **GGUF conversion (2026-07-22)** — MLX 4-bit fused model converted to Q4_K_M GGUF (18 GB) via dequantise → F16 GGUF → Q4_K_M; uploading to `Dellboy/chem_sage_32b_v5-GGUF`.
+- [x] **HuggingFace Space inference backend (`Dellboy/chem_sage-api`, 2026-07-22)** — Gradio SDK + `@spaces.GPU` ZeroGPU (A10G); llama-cpp-python CUDA wheel; streams SSE tokens from `/generate` via custom FastAPI route on `demo.app`.
+- [x] **xterm.js web app live at [chemsage.mdeller.com](https://chemsage.mdeller.com) (2026-07-22)** — Flask + flask-sock gevent PTY server; `chat_remote.py` patches mlx_lm/mlx.core so the real `chat.py` runs unchanged; xterm.js v5.3.0 terminal UI; gunicorn + nginx + Let's Encrypt TLS + systemd; mdeller.com hub entry added.
 - [ ] **Packaged CLI installer** — publish `chat.py` as a `pipx`-installable tool (`pyproject.toml` entry point); users with a local Qwen 32B model can `pipx install chemsage` and point it at their own `mlx_lm.server` endpoint.
 
 ### Round 6 (planned)
