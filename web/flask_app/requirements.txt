@@ -1,7 +1,8 @@
 flask
 flask-sock
 gunicorn
-# chem_sage deps (subset needed for RAG fast-path + Rich CLI)
+gevent
+# chem_sage deps (subset needed for the CLI; no ChromaDB/sentence-transformers on droplet)
 rich
 prompt_toolkit
 pyfiglet

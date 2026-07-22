@@ -1,97 +1,102 @@
 """
-ChemSage inference API — HuggingFace Space (ZeroGPU)
+ChemSage inference API — HuggingFace Space (Gradio SDK, ZeroGPU)
 
-Serves a streaming /generate endpoint backed by llama-cpp-python.
-The GGUF is pulled from the Hub on first request and cached for the session.
+Exposes POST /generate (SSE) consumed by the Flask PTY app on the droplet.
+Gradio SDK is required for ZeroGPU; the Gradio UI is minimal (just a landing page).
+
+Cold-start note: first request after idle downloads the 18 GB GGUF and allocates the GPU
+(~60-120 s). Subsequent requests within the same GPU lease are fast.
 """
 from __future__ import annotations
 
 import json
-import os
-from pathlib import Path
-from typing import Generator
 
+import gradio as gr
 import spaces
-from fastapi import FastAPI
+from fastapi import Request
 from fastapi.responses import StreamingResponse
 from huggingface_hub import hf_hub_download
 
-# ---------------------------------------------------------------------------
-# Model config
-# ---------------------------------------------------------------------------
-
 REPO_ID  = "Dellboy/chem_sage_32b_v5-GGUF"
 FILENAME = "chem_sage_32b_v5_q4km.gguf"
-MODEL_PATH: Path | None = None   # set after first download
+N_CTX    = 3072
+N_GPU_LAYERS = -1
 
-N_CTX    = 3072   # matches training max_seq_length
-N_GPU_LAYERS = -1  # offload all layers to GPU
-
-# ---------------------------------------------------------------------------
-# App
-# ---------------------------------------------------------------------------
-
-app = FastAPI(title="ChemSage API")
+_model_path: str | None = None
 
 
-def _get_model():
-    """Download GGUF on first call, return cached Llama instance."""
-    global MODEL_PATH
-    from llama_cpp import Llama
-
-    if MODEL_PATH is None:
-        MODEL_PATH = Path(hf_hub_download(repo_id=REPO_ID, filename=FILENAME))
-
-    return Llama(
-        model_path=str(MODEL_PATH),
-        n_ctx=N_CTX,
-        n_gpu_layers=N_GPU_LAYERS,
-        verbose=False,
-    )
+def _get_model_path() -> str:
+    global _model_path
+    if _model_path is None:
+        _model_path = hf_hub_download(repo_id=REPO_ID, filename=FILENAME)
+    return _model_path
 
 
-@spaces.GPU
+@spaces.GPU(duration=180)
 def _generate_tokens(
     prompt: str,
     max_tokens: int,
     temperature: float,
     repeat_penalty: float,
-) -> Generator[str, None, None]:
-    """Run inference inside the ZeroGPU lease."""
-    llm = _get_model()
-    stream = llm(
+) -> list[str]:
+    """Run inside the ZeroGPU lease; collect all tokens and return."""
+    from llama_cpp import Llama
+
+    llm = Llama(
+        model_path=_get_model_path(),
+        n_ctx=N_CTX,
+        n_gpu_layers=N_GPU_LAYERS,
+        verbose=False,
+    )
+    tokens: list[str] = []
+    for chunk in llm(
         prompt,
         max_tokens=max_tokens,
         temperature=temperature,
         repeat_penalty=repeat_penalty,
         stream=True,
+    ):
+        tok = chunk["choices"][0]["text"]
+        if tok:
+            tokens.append(tok)
+    return tokens
+
+
+# ── Gradio UI (minimal — required for Gradio SDK / ZeroGPU) ──────────────────
+
+with gr.Blocks(title="ChemSage API") as demo:
+    gr.Markdown(
+        "## ⚗️ ChemSage Inference API\n\n"
+        "Internal endpoint for [chemsage.mdeller.com](https://chemsage.mdeller.com). "
+        "Use `POST /generate` — returns `text/event-stream` of token chunks.\n\n"
+        "**Cold start:** first request after idle takes ~60-120 s (GGUF download + GPU alloc)."
     )
-    for chunk in stream:
-        token = chunk["choices"][0]["text"]
-        if token:
-            yield token
 
 
-@app.post("/generate")
-async def generate(request: dict):
-    """
-    POST /generate
-    Body: { "prompt": "...", "max_tokens": 512, "temperature": 0.15, "repeat_penalty": 1.15 }
-    Returns: text/event-stream of token strings
-    """
-    prompt        = request.get("prompt", "")
-    max_tokens    = int(request.get("max_tokens", 512))
-    temperature   = float(request.get("temperature", 0.15))
-    repeat_penalty = float(request.get("repeat_penalty", 1.15))
+# ── Custom FastAPI route mounted on Gradio's app ─────────────────────────────
+
+@demo.app.post("/generate")
+async def generate(request: Request):
+    body          = await request.json()
+    prompt        = body.get("prompt", "")
+    max_tokens    = int(body.get("max_tokens", 512))
+    temperature   = float(body.get("temperature", 0.15))
+    repeat_penalty = float(body.get("repeat_penalty", 1.15))
+
+    tokens = _generate_tokens(prompt, max_tokens, temperature, repeat_penalty)
 
     def event_stream():
-        for token in _generate_tokens(prompt, max_tokens, temperature, repeat_penalty):
-            yield f"data: {json.dumps({'token': token})}\n\n"
+        for tok in tokens:
+            yield f"data: {json.dumps({'token': tok})}\n\n"
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
-@app.get("/health")
-def health():
+@demo.app.get("/health")
+async def health():
     return {"status": "ok"}
+
+
+if __name__ == "__main__":
+    demo.launch()

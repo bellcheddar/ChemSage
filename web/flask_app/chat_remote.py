@@ -14,9 +14,23 @@ import sys
 import types
 from pathlib import Path
 
-# ── locate the chem_sage repo root (two levels up from this file) ──
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(REPO_ROOT))
+# ── locate chat.py — works in both repo layout and droplet layout ──────────
+# Repo:    chem_sage/web/flask_app/chat_remote.py → chem_sage/scripts/chat.py
+# Droplet: /opt/chemsage/chat_remote.py           → /opt/chem_sage_scripts/chat.py
+_this = Path(__file__).resolve()
+_candidates = [
+    _this.parent.parent.parent / "scripts" / "chat.py",  # repo layout
+    Path("/opt/chem_sage_scripts/chat.py"),               # droplet default
+    Path(os.environ.get("CHEMSAGE_CHAT_PY", "__none__")),
+]
+chat_path = next((p for p in _candidates if p.exists()), None)
+if chat_path is None:
+    raise FileNotFoundError(
+        "chat.py not found. Set CHEMSAGE_CHAT_PY env var or check repo layout."
+    )
+# Add repo root and scripts dir so chat.py's imports resolve
+sys.path.insert(0, str(chat_path.parent.parent))
+sys.path.insert(0, str(chat_path.parent))
 
 HF_SPACE_URL = os.environ.get("HF_SPACE_URL", "").rstrip("/")
 
@@ -96,11 +110,11 @@ sys.modules.update({"mlx": _mlx, "mlx.core": _mlx.core, "mlx.core.metal": _mlx.c
 # Run the real chat.py
 # ---------------------------------------------------------------------------
 
-chat_path = REPO_ROOT / "scripts" / "chat.py"
-
-# Inject --model flag (chat.py requires it even though we don't load locally)
+# Inject flags chat.py requires; --no-rag avoids ChromaDB/sentence-transformers on the droplet
 if "--model" not in sys.argv:
     sys.argv += ["--model", "chem_sage_32b_v5"]
+if "--no-rag" not in sys.argv:
+    sys.argv.append("--no-rag")
 
 spec   = importlib.util.spec_from_file_location("chat", str(chat_path))
 module = importlib.util.module_from_spec(spec)
