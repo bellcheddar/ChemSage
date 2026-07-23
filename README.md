@@ -308,6 +308,10 @@ The `data/corpus/` directory contains the full retrieval knowledge base: tool re
 
 ## 📝 Recent changes
 
+### HTTP/2 enabled on chemsage.mdeller.com (2026-07-23)
+
+- nginx 1.24 doesn't enable HTTP/2 by default even behind certbot's TLS; `web/flask_app/deploy/provision.sh` now patches `http2` onto the `listen ... ssl;` lines right after certbot runs, idempotently, so a re-run of provision.sh (fresh install or maintenance) always ends up with it enabled. Prompted by an nginx "protocol options redefined" warning once mdeller.com's own vhost got HTTP/2 first — all vhosts sharing port 443 on the droplet need the setting to match.
+
 ### chemsage.mdeller.com live (2026-07-22)
 
 - **TLS + nginx** — Let's Encrypt cert issued; nginx serves the xterm.js terminal at `https://chemsage.mdeller.com` with WebSocket upgrade for `/ws`; gunicorn gevent worker (`-k gevent -w 1`) with 300 s timeout for long inference calls; systemd unit auto-restarts on failure.
