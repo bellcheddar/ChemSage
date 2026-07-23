@@ -28,6 +28,8 @@ rsync -az --delete \
 rsync -az --delete \
   --exclude '__pycache__/' --exclude '*.pyc' \
   "$REPO_ROOT/rag/" "$DROPLET:$APP_DIR/../chem_sage_rag/"
+# Ensure /opt/rag → /opt/chem_sage_rag symlink exists (chat.py imports as "rag.*")
+ssh "$DROPLET" "ln -sfn /opt/chem_sage_rag /opt/rag"
 
 echo "==> Installing dependencies + restarting service"
 ssh "$DROPLET" bash -s <<REMOTE
