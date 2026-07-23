@@ -7,9 +7,8 @@ All Rich output, corpus tables, slash commands, and CLI behaviour are identical.
 """
 from __future__ import annotations
 
-import importlib
-import importlib.util
 import json
+import runpy
 import os
 import sys
 import types
@@ -117,6 +116,5 @@ if "--model" not in sys.argv:
 if "--no-rag" not in sys.argv:
     sys.argv.append("--no-rag")
 
-spec   = importlib.util.spec_from_file_location("chat", str(chat_path))
-module = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(module)
+import runpy
+runpy.run_path(str(chat_path), run_name="__main__")
