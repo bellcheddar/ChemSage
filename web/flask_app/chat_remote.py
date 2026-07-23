@@ -40,35 +40,55 @@ HF_SPACE_URL = os.environ.get("HF_SPACE_URL", "").rstrip("/")
 
 def _remote_stream_generate(model, tokenizer, *, prompt: str, max_tokens: int = 512,
                              sampler=None, logits_processors=None, **kwargs):
-    """Yield text chunks from the HF Space streaming endpoint."""
+    """Call the HF Space via Gradio's /gradio_api/call/generate endpoint.
+
+    Step 1: POST the job → get event_id.
+    Step 2: GET the SSE stream → wait for process_completed, yield full text.
+    ZeroGPU cold-start can take 60-120 s on the first call; timeout is 300 s.
+    """
     import urllib.request
+
+    # Step 1 — submit
     body = json.dumps({
-        "prompt":         prompt,
-        "max_tokens":     max_tokens,
-        "temperature":    0.15,
-        "repeat_penalty": 1.15,
+        "data": [prompt, max_tokens, 0.15, 1.15]
     }).encode()
     req = urllib.request.Request(
-        f"{HF_SPACE_URL}/gradio_api/generate",
+        f"{HF_SPACE_URL}/gradio_api/call/generate",
         data=body,
         headers={"Content-Type": "application/json"},
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=120) as resp:
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        event_id = json.loads(resp.read())["event_id"]
+
+    # Step 2 — poll SSE stream for process_completed
+    req2 = urllib.request.Request(
+        f"{HF_SPACE_URL}/gradio_api/call/generate/{event_id}",
+        method="GET",
+    )
+    with urllib.request.urlopen(req2, timeout=300) as resp:
         for raw_line in resp:
             line = raw_line.decode("utf-8").strip()
             if not line.startswith("data:"):
                 continue
             payload = line[5:].strip()
-            if payload == "[DONE]":
-                break
             try:
-                token = json.loads(payload).get("token", "")
-            except json.JSONDecodeError:
+                data = json.loads(payload)
+            except (json.JSONDecodeError, ValueError):
                 continue
-            if token:
-                # Yield a fake chunk object that chat.py expects
-                yield types.SimpleNamespace(text=token)
+            # Gradio 5+ sends {"msg": "process_completed", "output": {"data": [text]}}
+            if isinstance(data, dict) and data.get("msg") == "process_completed":
+                output = data.get("output", {}).get("data", [])
+                text = output[0] if output else ""
+                if text:
+                    yield types.SimpleNamespace(text=text)
+                break
+            # Gradio 4.x sends the result as a bare list: ["text"]
+            if isinstance(data, list) and data:
+                text = data[0] if isinstance(data[0], str) else ""
+                if text:
+                    yield types.SimpleNamespace(text=text)
+                break
 
 
 def _remote_generate(model, tokenizer, *, prompt: str, max_tokens: int = 512, **kwargs) -> str:
