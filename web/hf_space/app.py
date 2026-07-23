@@ -65,7 +65,7 @@ demo = gr.Interface(
     fn=generate,
     inputs=[
         gr.Textbox(label="Prompt (ChatML format)", lines=6),
-        gr.Number(label="max_tokens", value=512, precision=0),
+        gr.Number(label="max_tokens", value=512),
         gr.Number(label="temperature", value=0.15),
         gr.Number(label="repeat_penalty", value=1.15),
     ],
@@ -78,6 +78,8 @@ demo = gr.Interface(
     ),
     api_name="generate",
 )
+
+demo.queue()
 
 if __name__ == "__main__":
     demo.launch(server_name="0.0.0.0", server_port=7860)
