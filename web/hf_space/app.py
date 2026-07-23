@@ -1,11 +1,12 @@
 """
 ChemSage inference API — HuggingFace Space (Gradio SDK, ZeroGPU)
 
-Exposes POST /generate (SSE) consumed by the Flask PTY app on the droplet.
-Gradio SDK is required for ZeroGPU; the Gradio UI is minimal (just a landing page).
+Custom routes (/generate, /health) live on a top-level FastAPI app;
+Gradio is mounted on that app via gr.mount_gradio_app so ZeroGPU works.
 
-Cold-start note: first request after idle downloads the 18 GB GGUF and allocates the GPU
-(~60-120 s). Subsequent requests within the same GPU lease are fast.
+Cold-start note: first request after idle downloads the 18 GB GGUF and
+allocates the GPU (~60-120 s). Subsequent requests within the same GPU
+lease are fast.
 """
 from __future__ import annotations
 
@@ -13,13 +14,13 @@ import json
 
 import gradio as gr
 import spaces
-from fastapi import Request
+from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
 from huggingface_hub import hf_hub_download
 
-REPO_ID  = "Dellboy/chem_sage_32b_v5-GGUF"
-FILENAME = "chem_sage_32b_v5_q4km.gguf"
-N_CTX    = 3072
+REPO_ID      = "Dellboy/chem_sage_32b_v5-GGUF"
+FILENAME     = "chem_sage_32b_v5_q4km.gguf"
+N_CTX        = 3072
 N_GPU_LAYERS = -1
 
 _model_path: str | None = None
@@ -62,25 +63,17 @@ def _generate_tokens(
     return tokens
 
 
-# ── Gradio UI (minimal — required for Gradio SDK / ZeroGPU) ──────────────────
+# ── Top-level FastAPI app — custom routes registered here survive launch ──────
 
-with gr.Blocks(title="ChemSage API") as demo:
-    gr.Markdown(
-        "## ⚗️ ChemSage Inference API\n\n"
-        "Internal endpoint for [chemsage.mdeller.com](https://chemsage.mdeller.com). "
-        "Use `POST /generate` — returns `text/event-stream` of token chunks.\n\n"
-        "**Cold start:** first request after idle takes ~60-120 s (GGUF download + GPU alloc)."
-    )
+app = FastAPI()
 
 
-# ── Custom FastAPI route mounted on Gradio's app ─────────────────────────────
-
-@demo.app.post("/generate")
+@app.post("/generate")
 async def generate(request: Request):
-    body          = await request.json()
-    prompt        = body.get("prompt", "")
-    max_tokens    = int(body.get("max_tokens", 512))
-    temperature   = float(body.get("temperature", 0.15))
+    body           = await request.json()
+    prompt         = body.get("prompt", "")
+    max_tokens     = int(body.get("max_tokens", 512))
+    temperature    = float(body.get("temperature", 0.15))
     repeat_penalty = float(body.get("repeat_penalty", 1.15))
 
     tokens = _generate_tokens(prompt, max_tokens, temperature, repeat_penalty)
@@ -93,10 +86,24 @@ async def generate(request: Request):
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
-@demo.app.get("/health")
+@app.get("/health")
 async def health():
     return {"status": "ok"}
 
 
+# ── Gradio UI (minimal — required for ZeroGPU) ────────────────────────────────
+
+with gr.Blocks(title="ChemSage API") as demo:
+    gr.Markdown(
+        "## ⚗️ ChemSage Inference API\n\n"
+        "Internal endpoint for [chemsage.mdeller.com](https://chemsage.mdeller.com). "
+        "Use `POST /generate` — returns `text/event-stream` of token chunks.\n\n"
+        "**Cold start:** first request after idle takes ~60-120 s (GGUF download + GPU alloc)."
+    )
+
+# Mount Gradio at root — routes above take priority over Gradio's catch-all
+app = gr.mount_gradio_app(app, demo, path="/")
+
 if __name__ == "__main__":
-    demo.launch()
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=7860)
