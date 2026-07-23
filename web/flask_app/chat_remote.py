@@ -77,9 +77,24 @@ def _remote_generate(model, tokenizer, *, prompt: str, max_tokens: int = 512, **
         model, tokenizer, prompt=prompt, max_tokens=max_tokens))
 
 
+class _FakeTokenizer:
+    """Minimal tokenizer shim — the real model runs on the HF Space."""
+    def apply_chat_template(self, messages, tokenize=False, add_generation_prompt=True):
+        parts = []
+        for m in messages:
+            role, content = m.get("role", ""), m.get("content", "")
+            parts.append(f"<|im_start|>{role}\n{content}<|im_end|>")
+        if add_generation_prompt:
+            parts.append("<|im_start|>assistant\n")
+        return "\n".join(parts)
+
+    def encode(self, text):
+        return text.split()  # rough word-count; only used for stats display
+
+
 def _fake_load(model_path, *args, **kwargs):
     """Return dummy objects; the real model lives on the HF Space."""
-    return types.SimpleNamespace(_is_remote=True), None
+    return types.SimpleNamespace(_is_remote=True), _FakeTokenizer()
 
 
 # Inject a fake mlx_lm module before chat.py imports it
