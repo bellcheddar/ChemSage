@@ -1,8 +1,13 @@
 """
 ChemSage inference API — HuggingFace Space (Gradio SDK, ZeroGPU)
 
-Custom routes (/generate, /health) live on a top-level FastAPI app;
-Gradio is mounted on that app via gr.mount_gradio_app so ZeroGPU works.
+Exposes POST /generate (SSE) consumed by the Flask PTY app on the droplet.
+
+Route registration pattern:
+  demo.launch(prevent_thread_lock=True) returns the live FastAPI app.
+  Custom routes are added to that live app, then demo.block_thread() holds.
+  This is the only pattern that survives Gradio 5+/6+ creating a fresh
+  FastAPI instance at launch (making @demo.app.post a no-op).
 
 Cold-start note: first request after idle downloads the 18 GB GGUF and
 allocates the GPU (~60-120 s). Subsequent requests within the same GPU
@@ -14,7 +19,7 @@ import json
 
 import gradio as gr
 import spaces
-from fastapi import FastAPI, Request
+from fastapi import Request
 from fastapi.responses import StreamingResponse
 from huggingface_hub import hf_hub_download
 
@@ -63,35 +68,7 @@ def _generate_tokens(
     return tokens
 
 
-# ── Top-level FastAPI app — custom routes registered here survive launch ──────
-
-app = FastAPI()
-
-
-@app.post("/generate")
-async def generate(request: Request):
-    body           = await request.json()
-    prompt         = body.get("prompt", "")
-    max_tokens     = int(body.get("max_tokens", 512))
-    temperature    = float(body.get("temperature", 0.15))
-    repeat_penalty = float(body.get("repeat_penalty", 1.15))
-
-    tokens = _generate_tokens(prompt, max_tokens, temperature, repeat_penalty)
-
-    def event_stream():
-        for tok in tokens:
-            yield f"data: {json.dumps({'token': tok})}\n\n"
-        yield "data: [DONE]\n\n"
-
-    return StreamingResponse(event_stream(), media_type="text/event-stream")
-
-
-@app.get("/health")
-async def health():
-    return {"status": "ok"}
-
-
-# ── Gradio UI (minimal — required for ZeroGPU) ────────────────────────────────
+# ── Gradio UI (required for ZeroGPU) ─────────────────────────────────────────
 
 with gr.Blocks(title="ChemSage API") as demo:
     gr.Markdown(
@@ -101,9 +78,35 @@ with gr.Blocks(title="ChemSage API") as demo:
         "**Cold start:** first request after idle takes ~60-120 s (GGUF download + GPU alloc)."
     )
 
-# Mount Gradio at root — routes above take priority over Gradio's catch-all
-app = gr.mount_gradio_app(app, demo, path="/")
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=7860)
+    # Launch Gradio but keep the thread free so we can patch routes.
+    app, _local_url, _share_url = demo.launch(
+        server_name="0.0.0.0",
+        server_port=7860,
+        prevent_thread_lock=True,
+    )
+
+    # app is the live FastAPI instance — routes registered here are real.
+    @app.post("/generate")
+    async def generate(request: Request):
+        body           = await request.json()
+        prompt         = body.get("prompt", "")
+        max_tokens     = int(body.get("max_tokens", 512))
+        temperature    = float(body.get("temperature", 0.15))
+        repeat_penalty = float(body.get("repeat_penalty", 1.15))
+
+        tokens = _generate_tokens(prompt, max_tokens, temperature, repeat_penalty)
+
+        def event_stream():
+            for tok in tokens:
+                yield f"data: {json.dumps({'token': tok})}\n\n"
+            yield "data: [DONE]\n\n"
+
+        return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+    @app.get("/health")
+    async def health():
+        return {"status": "ok"}
+
+    demo.block_thread()
