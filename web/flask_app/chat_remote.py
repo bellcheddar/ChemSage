@@ -8,6 +8,7 @@ All Rich output, corpus tables, slash commands, and CLI behaviour are identical.
 from __future__ import annotations
 
 import importlib
+import importlib.util
 import json
 import os
 import sys
