@@ -49,7 +49,7 @@ def _remote_stream_generate(model, tokenizer, *, prompt: str, max_tokens: int = 
         "repeat_penalty": 1.15,
     }).encode()
     req = urllib.request.Request(
-        f"{HF_SPACE_URL}/generate",
+        f"{HF_SPACE_URL}/gradio_api/generate",
         data=body,
         headers={"Content-Type": "application/json"},
         method="POST",

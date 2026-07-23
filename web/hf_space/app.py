@@ -88,7 +88,9 @@ if __name__ == "__main__":
     )
 
     # app is the live FastAPI instance — routes registered here are real.
-    @app.post("/generate")
+    # In Gradio 6.x the SvelteKit SPA intercepts all paths EXCEPT /gradio_api/*,
+    # so custom routes must live under that prefix to be reachable externally.
+    @app.post("/gradio_api/generate")
     async def generate(request: Request):
         body           = await request.json()
         prompt         = body.get("prompt", "")
@@ -105,7 +107,7 @@ if __name__ == "__main__":
 
         return StreamingResponse(event_stream(), media_type="text/event-stream")
 
-    @app.get("/health")
+    @app.get("/gradio_api/health")
     async def health():
         return {"status": "ok"}
 
