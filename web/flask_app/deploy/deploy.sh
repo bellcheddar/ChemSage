@@ -20,7 +20,7 @@ rsync -az --delete \
   --exclude '.env' --exclude 'static/uploads/' \
   "$FLASK_APP/" "$DROPLET:$APP_DIR/"
 
-# Also sync the repo's scripts/ and rag/ dirs so chat.py and chat_remote.py can import them.
+# Also sync the repo's scripts/, rag/, and data/corpus/ dirs.
 echo "==> Syncing chem_sage scripts and rag modules"
 rsync -az --delete \
   --exclude '__pycache__/' --exclude '*.pyc' \
@@ -31,6 +31,12 @@ rsync -az --delete \
 # Ensure /opt/rag → /opt/chem_sage_rag symlink exists (chat.py imports as "rag.*")
 ssh "$DROPLET" "ln -sfn /opt/chem_sage_rag /opt/rag"
 
+echo "==> Syncing corpus CSVs (corpus_lookup keyword fast-path)"
+ssh "$DROPLET" "mkdir -p $APP_DIR/data/corpus"
+rsync -az --delete \
+  --exclude '__pycache__/' \
+  "$REPO_ROOT/data/corpus/" "$DROPLET:$APP_DIR/data/corpus/"
+
 echo "==> Installing dependencies + restarting service"
 ssh "$DROPLET" bash -s <<REMOTE
 set -euo pipefail
@@ -40,6 +46,10 @@ if [[ ! -x .venv/bin/python ]]; then
 fi
 sudo -u chemsage .venv/bin/pip install --quiet -r requirements.txt
 find "${APP_DIR}" -not -path "${APP_DIR}/.venv/*" -exec chown chemsage:chemsage {} + 2>/dev/null || true
+chown -R chemsage:chemsage "${APP_DIR}/../chem_sage_scripts/" "${APP_DIR}/../chem_sage_rag/" 2>/dev/null || true
+chown -R chemsage:chemsage "${APP_DIR}/data/" 2>/dev/null || true
+# rsync preserves Mac 0600 mode bits; ensure all scripts are readable by service user
+chmod -R a+rX "${APP_DIR}/../chem_sage_scripts/" "${APP_DIR}/../chem_sage_rag/" 2>/dev/null || true
 sudo systemctl restart chemsage-web.service
 sudo systemctl --no-pager --lines=3 status chemsage-web.service || true
 REMOTE

@@ -33,6 +33,7 @@ sys.path.insert(0, str(chat_path.parent.parent))
 sys.path.insert(0, str(chat_path.parent))
 
 HF_SPACE_URL = os.environ.get("HF_SPACE_URL", "").rstrip("/")
+HF_TOKEN     = os.environ.get("HF_TOKEN", "")
 
 # ---------------------------------------------------------------------------
 # Fake mlx_lm that calls the remote API instead of a local GPU
@@ -52,18 +53,25 @@ def _remote_stream_generate(model, tokenizer, *, prompt: str, max_tokens: int = 
     body = json.dumps({
         "data": [prompt, max_tokens, 0.15, 1.15]
     }).encode()
+    headers = {"Content-Type": "application/json"}
+    if HF_TOKEN:
+        headers["Authorization"] = f"Bearer {HF_TOKEN}"
     req = urllib.request.Request(
         f"{HF_SPACE_URL}/gradio_api/call/generate",
         data=body,
-        headers={"Content-Type": "application/json"},
+        headers=headers,
         method="POST",
     )
     with urllib.request.urlopen(req, timeout=60) as resp:
         event_id = json.loads(resp.read())["event_id"]
 
     # Step 2 — poll SSE stream for process_completed
+    sse_headers = {}
+    if HF_TOKEN:
+        sse_headers["Authorization"] = f"Bearer {HF_TOKEN}"
     req2 = urllib.request.Request(
         f"{HF_SPACE_URL}/gradio_api/call/generate/{event_id}",
+        headers=sse_headers,
         method="GET",
     )
     with urllib.request.urlopen(req2, timeout=300) as resp:
@@ -83,6 +91,9 @@ def _remote_stream_generate(model, tokenizer, *, prompt: str, max_tokens: int = 
                 if text:
                     yield types.SimpleNamespace(text=text)
                 break
+            # Error event (e.g. ZeroGPU quota exceeded) — surface it rather than silently exit
+            if isinstance(data, dict) and data.get("error"):
+                raise RuntimeError(f"HF Space error: {data['error']}")
             # Gradio 4.x sends the result as a bare list: ["text"]
             if isinstance(data, list) and data:
                 text = data[0] if isinstance(data[0], str) else ""
@@ -146,17 +157,16 @@ _mlx.core.metal.device_info = lambda: {}
 sys.modules.update({"mlx": _mlx, "mlx.core": _mlx.core, "mlx.core.metal": _mlx.core.metal})
 
 # ---------------------------------------------------------------------------
-# Fake rag package — the real one needs chromadb/sentence-transformers which
-# are too heavy for the 3.8 GB droplet.  --no-rag prevents Retriever being
-# used; corpus_lookup and execute are called unconditionally so stub them out
-# with safe no-op returns.
+# Partial rag fakes — corpus_lookup uses only pandas + CSV files so we import
+# it for real (tables work on the droplet).  retrieve and tool_exec need
+# chromadb/sentence-transformers (1.4 GB store + ~440 MB embedding model) and
+# RDKit respectively — both too heavy for the 3.8 GB droplet, so kept fake.
+# Pre-inject the fakes before chat.py runs so its imports don't trigger the
+# real heavy modules.
 # ---------------------------------------------------------------------------
 class _FakeRetriever:
     def __init__(self, *a, **k): pass
     def query(self, *a, **k): return []
-
-def _fake_corpus_lookup(*a, **k):
-    return []  # falsy → chat.py skips the fast-path table entirely
 
 def _fake_format_context(*a, **k):
     return ""
@@ -164,20 +174,13 @@ def _fake_format_context(*a, **k):
 def _fake_execute(text, *a, **k):
     return "[no executable code found]"  # chat.py checks startswith("[no executable")
 
-_rag        = types.ModuleType("rag")
-_rag_cl     = types.ModuleType("rag.corpus_lookup")
-_rag_ret    = types.ModuleType("rag.retrieve")
-_rag_tool   = types.ModuleType("rag.tool_exec")
-
-_rag_cl.lookup         = _fake_corpus_lookup
-_rag_ret.Retriever     = _FakeRetriever
+_rag_ret  = types.ModuleType("rag.retrieve")
+_rag_tool = types.ModuleType("rag.tool_exec")
+_rag_ret.Retriever      = _FakeRetriever
 _rag_ret.format_context = _fake_format_context
-_rag_tool.execute      = _fake_execute
-
-sys.modules.update({
-    "rag": _rag, "rag.corpus_lookup": _rag_cl,
-    "rag.retrieve": _rag_ret, "rag.tool_exec": _rag_tool,
-})
+_rag_tool.execute       = _fake_execute
+sys.modules["rag.retrieve"]  = _rag_ret
+sys.modules["rag.tool_exec"] = _rag_tool
 
 # ---------------------------------------------------------------------------
 # Run the real chat.py

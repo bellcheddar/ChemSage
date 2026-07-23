@@ -27,6 +27,7 @@ Slash commands:
 
 import argparse
 import contextlib
+import fcntl
 import os
 import re
 import sys
@@ -354,6 +355,69 @@ def _format_corpus_context(results: list) -> str:
     return "\n".join(parts)
 
 
+def _corpus_input(prompt: str) -> str:
+    """Read one line directly from the PTY slave fd, bypassing Python's I/O layers.
+
+    PromptSession may leave stdin's BufferedReader with a cached empty-read
+    state, OR leave the PTY in VMIN=0/VTIME=0 (non-blocking termios), meaning
+    even a blocking fd read returns '' immediately.  Using os.read() on the raw
+    fd bypasses both Python's buffer cache and any termios state set by
+    prompt_toolkit, so this reliably blocks until the user presses Enter.
+    """
+    import select as _sel
+    fd = sys.stdin.fileno()
+
+    # Clear O_NONBLOCK at the fcntl level
+    try:
+        old_flags = fcntl.fcntl(fd, fcntl.F_GETFL)
+        fcntl.fcntl(fd, fcntl.F_SETFL, old_flags & ~os.O_NONBLOCK)
+    except OSError:
+        old_flags = None
+
+    # Also restore canonical mode + VMIN=1,VTIME=0 in case prompt_toolkit
+    # left the PTY in raw/cbreak mode (VMIN=0 causes read() to return immediately)
+    import termios as _termios
+    try:
+        old_tc = _termios.tcgetattr(fd)
+        new_tc = _termios.tcgetattr(fd)
+        new_tc[3] |= _termios.ICANON | _termios.ECHO   # cooked mode
+        new_tc[6][_termios.VMIN]  = 1
+        new_tc[6][_termios.VTIME] = 0
+        _termios.tcsetattr(fd, _termios.TCSANOW, new_tc)
+    except Exception:
+        old_tc = None
+
+    try:
+        sys.stdout.write(prompt)
+        sys.stdout.flush()
+
+        # Read one line from the raw fd — bypasses BufferedReader EOF cache
+        buf = bytearray()
+        while True:
+            try:
+                ch = os.read(fd, 1)
+            except OSError as e:
+                raise EOFError(f"PTY read error: {e}") from e
+            if not ch:                       # master fd closed → true EOF
+                raise EOFError("PTY master closed")
+            if ch in (b"\n", b"\r"):
+                break
+            buf.extend(ch)
+
+        return buf.decode("utf-8", errors="replace")
+    finally:
+        if old_tc is not None:
+            try:
+                _termios.tcsetattr(fd, _termios.TCSANOW, old_tc)
+            except Exception:
+                pass
+        if old_flags is not None:
+            try:
+                fcntl.fcntl(fd, fcntl.F_SETFL, old_flags)
+            except OSError:
+                pass
+
+
 def _offer_corpus_tables(results: list) -> None:
     summary = "  " + "\n  ".join(
         f"[chemsage.ok]⬡[/chemsage.ok]  {r.total:,} {r.title.lower()}"
@@ -367,8 +431,8 @@ def _offer_corpus_tables(results: list) -> None:
         padding=(0, 1),
     ))
     try:
-        choice = pt_prompt("  → ").strip().lower()
-    except (KeyboardInterrupt, EOFError):
+        choice = _corpus_input("  → ").strip().lower()
+    except (KeyboardInterrupt, EOFError, Exception):
         _console.print()
         return
     if choice == "v":
@@ -379,8 +443,8 @@ def _export_result(result, keyword: str) -> None:
     safe    = re.sub(r"[^\w\-]", "_", f"{keyword}_{result.title}")
     default = _DESKTOP / f"{safe}.csv"
     try:
-        raw = pt_prompt(f"  Save to [{default}]: ").strip()
-    except (KeyboardInterrupt, EOFError):
+        raw = _corpus_input(f"  Save to [{default}]: ").strip()
+    except (KeyboardInterrupt, EOFError, Exception):
         _console.print("\n  [dim]Export cancelled.[/dim]")
         return
     fpath = Path(raw).expanduser() if raw else default
@@ -452,8 +516,8 @@ def _view_result(result, keyword: str) -> None:
                     f" {_MAX_LOAD}-row load cap.[/dim]"
                 )
                 try:
-                    choice = pt_prompt("  [e] export CSV   [Enter] back → ").strip().lower()
-                except (KeyboardInterrupt, EOFError):
+                    choice = _corpus_input("  [e] export CSV   [Enter] back → ").strip().lower()
+                except (KeyboardInterrupt, EOFError, Exception):
                     _console.print()
                     break
                 if choice == "e":
@@ -462,11 +526,11 @@ def _view_result(result, keyword: str) -> None:
 
         remaining = len(df) - offset
         try:
-            choice = pt_prompt(
+            choice = _corpus_input(
                 f"\n  {remaining} more rows"
                 f"  ·  [Enter] next page   [e] export CSV   [b] back → "
             ).strip().lower()
-        except (KeyboardInterrupt, EOFError):
+        except (KeyboardInterrupt, EOFError, Exception):
             _console.print()
             break
 
@@ -499,9 +563,11 @@ def _print_lookup(results: list) -> None:
 
         _console.print()
         try:
-            raw = pt_prompt(f"  Choose [1-{len(results)}] or [q] quit → ").strip().lower()
+            raw = _corpus_input(f"  Choose [1-{len(results)}] or [q] quit → ").strip().lower()
         except (KeyboardInterrupt, EOFError):
             _console.print()
+            break
+        except Exception:
             break
 
         if raw in ("q", ""):
@@ -561,8 +627,8 @@ def _handle_slash_command(cmd: str, history: list, info: dict | None = None) -> 
 
     if name == "/reset":
         try:
-            confirm = pt_prompt("  Clear conversation history? [y/N] → ").strip().lower()
-        except (KeyboardInterrupt, EOFError):
+            confirm = _corpus_input("  Clear conversation history? [y/N] → ").strip().lower()
+        except (KeyboardInterrupt, EOFError, Exception):
             _console.print()
             return
         if confirm == "y":
@@ -608,8 +674,8 @@ def _save_conversation(history: list) -> None:
     ts      = time.strftime("%Y%m%d_%H%M%S")
     default = _DESKTOP / f"chemsage_{ts}.md"
     try:
-        raw = pt_prompt(f"  Save to [{default}]: ").strip()
-    except (KeyboardInterrupt, EOFError):
+        raw = _corpus_input(f"  Save to [{default}]: ").strip()
+    except (KeyboardInterrupt, EOFError, Exception):
         _console.print("\n  [dim]Cancelled.[/dim]\n")
         return
     fpath = Path(raw).expanduser() if raw else default
@@ -907,7 +973,12 @@ def chat_loop(
         # ── Corpus fast-path: bulk enumeration → table, never LLM ────────────
         fast = corpus_lookup(user_input)
         if fast:
-            _print_lookup(fast)
+            try:
+                _print_lookup(fast)
+            except (KeyboardInterrupt, EOFError):
+                pass
+            except Exception as _e:
+                _console.print(f"\n  [dim]Corpus menu error: {_e}[/dim]\n")
             summary = "Corpus lookup: " + ", ".join(
                 f"{r.total} {r.title.lower()}" for r in fast
             ) + f" for '{fast[0].keyword}'."

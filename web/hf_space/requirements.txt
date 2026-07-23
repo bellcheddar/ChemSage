@@ -1,4 +1,4 @@
---extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu121
+--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu130
 llama-cpp-python
 gradio>=4.0
 spaces

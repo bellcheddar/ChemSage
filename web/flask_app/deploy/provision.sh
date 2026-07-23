@@ -39,7 +39,7 @@ sudo -u "$APP_USER" "$APP_DIR/.venv/bin/pip" install --quiet -r "$APP_DIR/requir
 echo "==> Creating .env (HF Space URL)"
 if [[ ! -f "$APP_DIR/.env" ]]; then
   cat > "$APP_DIR/.env" <<'EOF'
-HF_SPACE_URL=https://dellboy-chem-sage-api.hf.space
+HF_SPACE_URL=https://dellboy-chem-sage-api-23b65d2.hf.space
 SECRET_KEY=change-me
 EOF
   chown "$APP_USER:$APP_USER" "$APP_DIR/.env"

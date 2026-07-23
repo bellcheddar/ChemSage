@@ -312,10 +312,14 @@ The `data/corpus/` directory contains the full retrieval knowledge base: tool re
 
 - nginx 1.24 doesn't enable HTTP/2 by default even behind certbot's TLS; `web/flask_app/deploy/provision.sh` now patches `http2` onto the `listen ... ssl;` lines right after certbot runs, idempotently, so a re-run of provision.sh (fresh install or maintenance) always ends up with it enabled. Prompted by an nginx "protocol options redefined" warning once mdeller.com's own vhost got HTTP/2 first — all vhosts sharing port 443 on the droplet need the setting to match.
 
+### HF Space CUDA 13 fix — end-to-end inference confirmed (2026-07-23)
+
+ZeroGPU Blackwell hardware runs CUDA 13.0 (PyTorch 2.11.0+cu130), causing an ABI mismatch with the cu121 llama-cpp-python wheel: `libggml-cuda.so` had `DT_NEEDED: libcudart.so.12` but the system only provides `libcudart.so.13`. Switched `requirements.txt` to the native cu130 wheel (`--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu130`) — no compatibility shim required. Inference confirmed end-to-end: `chemsage.mdeller.com` → droplet PTY → `chat_remote.py` → HF Space `Dellboy/chem-sage-api` → A10G → correct chemical response.
+
 ### chemsage.mdeller.com live (2026-07-22)
 
 - **TLS + nginx** — Let's Encrypt cert issued; nginx serves the xterm.js terminal at `https://chemsage.mdeller.com` with WebSocket upgrade for `/ws`; gunicorn gevent worker (`-k gevent -w 1`) with 300 s timeout for long inference calls; systemd unit auto-restarts on failure.
-- **HF Space (`Dellboy/chem_sage-api`) deployed** — Gradio SDK (required for ZeroGPU); `@spaces.GPU(duration=180)` acquires an A10G on each request, loads the GGUF, collects all tokens, then releases GPU; tokens streamed back to client via SSE. llama-cpp-python installed from pre-built CUDA 12.1 wheel (`--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu121`).
+- **HF Space (`Dellboy/chem-sage-api`) deployed** — Gradio SDK (required for ZeroGPU); `@spaces.GPU(duration=60)` acquires an A10G on each request; model lazy-loaded and cached in the ZeroGPU worker between calls; tokens collected and returned via Gradio SSE (`/gradio_api/call/generate`). llama-cpp-python installed from native CUDA 13.0 wheel (`--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu130`).
 - **`chat_remote.py` path detection** — robust dual-layout detection: finds `chat.py` at `chem_sage/scripts/` in the repo or `/opt/chem_sage_scripts/` on the droplet; `--no-rag` injected to skip ChromaDB and sentence-transformers on the 3.8 GB droplet.
 - **mdeller.com hub updated** — ChemSage entry in `apps.json` points to `chemsage.mdeller.com`; deployed via `mdeller-landing/deploy.sh`.
 - **Deploy scripts** — `web/flask_app/deploy/provision.sh` (one-time), `deploy.sh` (idempotent rsync + restart), `nginx-chemsage.conf`, `chemsage-web.service`.
@@ -575,7 +579,7 @@ details), `/retry` (regenerate last response).
 
 ### Publishing and deployment
 - [x] **GGUF conversion (2026-07-22)** — MLX 4-bit fused model converted to Q4_K_M GGUF (18 GB) via dequantise → F16 GGUF → Q4_K_M; uploading to `Dellboy/chem_sage_32b_v5-GGUF`.
-- [x] **HuggingFace Space inference backend (`Dellboy/chem_sage-api`, 2026-07-22)** — Gradio SDK + `@spaces.GPU` ZeroGPU (A10G); llama-cpp-python CUDA wheel; streams SSE tokens from `/generate` via custom FastAPI route on `demo.app`.
+- [x] **HuggingFace Space inference backend (`Dellboy/chem-sage-api`, 2026-07-23)** — Gradio SDK + `@spaces.GPU(duration=60)` ZeroGPU (A10G); llama-cpp-python cu130 wheel (native CUDA 13.0); Gradio SSE via `/gradio_api/call/generate`; model cached in ZeroGPU worker between calls; end-to-end inference confirmed.
 - [x] **xterm.js web app live at [chemsage.mdeller.com](https://chemsage.mdeller.com) (2026-07-22)** — Flask + flask-sock gevent PTY server; `chat_remote.py` patches mlx_lm/mlx.core so the real `chat.py` runs unchanged; xterm.js v5.3.0 terminal UI; gunicorn + nginx + Let's Encrypt TLS + systemd; mdeller.com hub entry added.
 - [ ] **Packaged CLI installer** — publish `chat.py` as a `pipx`-installable tool (`pyproject.toml` entry point); users with a local Qwen 32B model can `pipx install chemsage` and point it at their own `mlx_lm.server` endpoint.
 

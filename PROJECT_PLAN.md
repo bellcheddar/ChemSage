@@ -6,7 +6,7 @@ medicinal chemist actually uses (RDKit, PyMOL, docking, PLIP), and grounds every
 in the user's own corpus (papers, assay tables, target dossiers, SAR series).
 
 **Author:** Marc C. Deller, D.Phil. ([marcdeller.com](https://marcdeller.com))
-**Status:** Round 5 complete (early stop 2026-06-29 at iter 2000) — best val 0.055 at iter 1600, fused to `models/chem_sage_32b_v5/`. R4 best val **0.041** at iter 950 (24% over R3). 5-round comparative eval complete (R5 overall 95%). Web app live at **[chemsage.mdeller.com](https://chemsage.mdeller.com)** (2026-07-22): xterm.js terminal on droplet, inference on HF ZeroGPU Space (`Dellboy/chem_sage-api`); GGUF upload to `Dellboy/chem_sage_32b_v5-GGUF` in progress.
+**Status:** Round 5 complete (early stop 2026-06-29 at iter 2000) — best val 0.055 at iter 1600, fused to `models/chem_sage_32b_v5/`. R4 best val **0.041** at iter 950 (24% over R3). 5-round comparative eval complete (R5 overall 95%). Web app live at **[chemsage.mdeller.com](https://chemsage.mdeller.com)** (2026-07-22, end-to-end inference confirmed 2026-07-23): xterm.js terminal on droplet, inference on HF ZeroGPU Space (`Dellboy/chem-sage-api`, cu130 wheel, CUDA 13.0); GGUF on `Dellboy/chem_sage_32b_v5-GGUF`.
 **Fine-tune stack:** MLX-LM on Apple Silicon (committed; see section 3).
 **Hand-off:** this document is the build brief for Claude Code. Phases are ordered so each one
 is independently testable and delivers value before the next begins.
@@ -323,27 +323,29 @@ the real `chat.py` unchanged.
 3. Quantise to Q4_K_M:
    `llama-quantize /tmp/chem_sage_32b_v5_f16.gguf /tmp/chem_sage_32b_v5_q4km.gguf Q4_K_M` → 18 GB.
 
-**Step 2 — HF Space (`Dellboy/chem_sage-api`):**
-- Upload Q4_K_M GGUF to `Dellboy/chem_sage_32b_v5-GGUF` on the Hub.
-- `web/hf_space/` — FastAPI + llama-cpp-python (CUDA build) + `@spaces.GPU` decorator;
-  streams SSE tokens from a `/generate` endpoint.
-- Dockerfile: `nvidia/cuda:12.1.0-cudnn8-devel-ubuntu22.04`, `CMAKE_ARGS="-DGGML_CUDA=on"`,
-  `app_port: 7860`, `sdk: docker`.
+**Step 2 — HF Space (`Dellboy/chem-sage-api`, complete):**
+- GGUF published at `Dellboy/chem_sage_32b_v5-GGUF` on the Hub.
+- `web/hf_space/` — Gradio SDK + `@spaces.GPU(duration=60)` ZeroGPU (zero-a10g hardware).
+  Model lazy-loaded into the A10G and cached in the ZeroGPU worker between calls.
+  Client calls `POST /gradio_api/call/generate` → event_id, then `GET /gradio_api/call/generate/{id}` → SSE with bare-list data `["text"]`.
+- **CUDA note:** ZeroGPU Blackwell has CUDA 13.0; cu121 wheel fails (`libcudart.so.12` not found).
+  Fix: use the native cu130 wheel — `--extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cu130`.
+  No compatibility shim needed.
 
-**Step 3 — Flask web app (droplet):**
+**Step 3 — Flask web app (droplet, complete):**
 - `web/flask_app/` — Flask + flask-sock; each WebSocket connection spawns `chat_remote.py`
   in a `pty.openpty()` subprocess per session.
 - `chat_remote.py` injects a fake `mlx_lm` module (and `mlx.core`) into `sys.modules` before
-  `chat.py` imports; the fake `stream_generate` calls the HF Space `/generate` SSE endpoint.
+  `chat.py` imports; the fake `stream_generate` calls the HF Space Gradio SSE endpoint.
   The real `chat.py` runs completely unchanged — all Rich output, slash commands, and corpus
   tables work identically.
 - `web/flask_app/templates/index.html` — xterm.js v5.3.0 terminal; dark ChemSage theme
   (background `#0d1117`, cursor `#00d4ff`); per-session WebSocket at `/ws`.
-- Deploy: `gunicorn -k gevent web.flask_app.wsgi:app`, nginx reverse proxy, systemd service,
+- Deploy: `gunicorn -k gevent wsgi:app`, nginx reverse proxy, systemd service,
   subdomain `chemsage.mdeller.com`.
-- Add entry to `mdeller-landing/apps.json` for the mdeller.com hub.
+- Entry added to `mdeller-landing/apps.json` for the mdeller.com hub.
 
-**Exit test (complete 2026-07-22):** `https://chemsage.mdeller.com` opens an xterm.js terminal with TLS; the ChemSage banner and prompt appear; chemistry queries stream via the HF Space ZeroGPU A10G. GGUF repo to be made public once upload completes.
+**Exit test (complete 2026-07-23):** `https://chemsage.mdeller.com` opens an xterm.js terminal with TLS; the ChemSage banner and prompt appear; chemistry queries stream via the HF Space ZeroGPU A10G. Inference confirmed end-to-end ("Acetone (CH3COCH3) is a common ketone." — correct response to a ketone question).
 
 ---
 
@@ -382,7 +384,7 @@ chem_sage/
     │   ├── app.py           # FastAPI + ZeroGPU inference endpoint (llama-cpp-python, SSE)
     │   ├── requirements.txt
     │   ├── README.md        # HF Space card (sdk: docker, app_port: 7860, emoji: ⚗️)
-    │   └── Dockerfile       # nvidia/cuda:12.1.0, CMAKE_ARGS="-DGGML_CUDA=on"
+    │   └── README.md        # HF Space card (sdk: gradio, hardware: zero-gpu, emoji: ⚗️)
     └── flask_app/
         ├── app.py           # Flask + flask-sock WebSocket PTY server
         ├── chat_remote.py   # mlx_lm/mlx.core patcher; launches real chat.py via importlib
