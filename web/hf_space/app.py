@@ -1,13 +1,9 @@
 """
 ChemSage inference API — HuggingFace Space (Gradio SDK, ZeroGPU)
 
-Exposes a named Gradio endpoint `generate` reachable at:
-  POST  /gradio_api/call/generate          → {"event_id": "..."}
-  GET   /gradio_api/call/generate/{id}     → SSE stream with process_completed event
-
-All custom-FastAPI-route approaches fail in Gradio 6.x because the SvelteKit SPA
-intercepts unknown paths and Gradio mounts its API as a sub-app at /gradio_api/.
-Using Gradio's own call API sidesteps both problems.
+API client calls:
+  POST /gradio_api/call/generate          → {"event_id": "..."}
+  GET  /gradio_api/call/generate/{id}     → SSE, wait for process_completed
 
 Cold-start: first request downloads the 18 GB GGUF and allocates the GPU (~60-120 s).
 """
@@ -33,15 +29,8 @@ def _get_model_path() -> str:
 
 
 @spaces.GPU(duration=180)
-def generate(
-    prompt: str,
-    max_tokens: int   = 512,
-    temperature: float = 0.15,
-    repeat_penalty: float = 1.15,
-) -> str:
-    """Generate a response. Called through Gradio's queue so ZeroGPU works."""
+def generate(prompt: str, max_tokens: float, temperature: float, repeat_penalty: float) -> str:
     from llama_cpp import Llama
-
     llm = Llama(
         model_path=_get_model_path(),
         n_ctx=N_CTX,
@@ -52,7 +41,7 @@ def generate(
         chunk["choices"][0]["text"]
         for chunk in llm(
             prompt,
-            max_tokens=max_tokens,
+            max_tokens=int(max_tokens),
             temperature=temperature,
             repeat_penalty=repeat_penalty,
             stream=True,
@@ -61,23 +50,28 @@ def generate(
     )
 
 
-demo = gr.Interface(
-    fn=generate,
-    inputs=[
-        gr.Textbox(label="Prompt (ChatML format)", lines=6),
-        gr.Number(label="max_tokens", value=512),
-        gr.Number(label="temperature", value=0.15),
-        gr.Number(label="repeat_penalty", value=1.15),
-    ],
-    outputs=gr.Textbox(label="Response", lines=12),
-    title="⚗️ ChemSage API",
-    description=(
-        "Internal inference API for "
-        "[chemsage.mdeller.com](https://chemsage.mdeller.com).  "
+with gr.Blocks(title="ChemSage API") as demo:
+    gr.Markdown(
+        "## ⚗️ ChemSage Inference API\n\n"
+        "Internal endpoint for [chemsage.mdeller.com](https://chemsage.mdeller.com).  \n"
         "**Cold start:** first request takes ~60-120 s (GGUF download + GPU alloc)."
-    ),
-    api_name="generate",
-)
+    )
+    with gr.Row():
+        with gr.Column():
+            prompt_in      = gr.Textbox(label="Prompt (ChatML format)", lines=6)
+            max_tokens_in  = gr.Number(label="max_tokens",     value=512)
+            temperature_in = gr.Number(label="temperature",    value=0.15)
+            penalty_in     = gr.Number(label="repeat_penalty", value=1.15)
+            btn            = gr.Button("Generate")
+        with gr.Column():
+            output_out = gr.Textbox(label="Response", lines=12)
+
+    btn.click(
+        fn=generate,
+        inputs=[prompt_in, max_tokens_in, temperature_in, penalty_in],
+        outputs=output_out,
+        api_name="generate",
+    )
 
 demo.queue()
 
