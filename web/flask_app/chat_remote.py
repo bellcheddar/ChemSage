@@ -93,6 +93,11 @@ for _sub in ("utils", "generate", "sample_utils"):
     _m = types.ModuleType(f"mlx_lm.{_sub}")
     sys.modules[f"mlx_lm.{_sub}"] = _m
 
+# make_sampler / make_logits_processors are passed as kwargs to our remote
+# stream_generate which ignores them — just return None so the import works.
+sys.modules["mlx_lm.sample_utils"].make_sampler           = lambda *a, **k: None
+sys.modules["mlx_lm.sample_utils"].make_logits_processors = lambda *a, **k: None
+
 _mlx_lm_fake.utils         = sys.modules["mlx_lm.utils"]
 _mlx_lm_fake.generate_mod  = sys.modules["mlx_lm.generate"]
 sys.modules["mlx_lm"] = _mlx_lm_fake
