@@ -103,13 +103,46 @@ _mlx_lm_fake.generate_mod  = sys.modules["mlx_lm.generate"]
 sys.modules["mlx_lm"] = _mlx_lm_fake
 
 # Fake mlx.core (used for mx.set_wired_limit etc.) — silently ignore
-import types as _t
-_mlx = _t.ModuleType("mlx")
-_mlx.core = _t.ModuleType("mlx.core")
+_mlx = types.ModuleType("mlx")
+_mlx.core = types.ModuleType("mlx.core")
 _mlx.core.set_wired_limit = lambda *a, **k: None
-_mlx.core.metal           = _t.ModuleType("mlx.core.metal")
+_mlx.core.metal           = types.ModuleType("mlx.core.metal")
 _mlx.core.metal.device_info = lambda: {}
 sys.modules.update({"mlx": _mlx, "mlx.core": _mlx.core, "mlx.core.metal": _mlx.core.metal})
+
+# ---------------------------------------------------------------------------
+# Fake rag package — the real one needs chromadb/sentence-transformers which
+# are too heavy for the 3.8 GB droplet.  --no-rag prevents Retriever being
+# used; corpus_lookup and execute are called unconditionally so stub them out
+# with safe no-op returns.
+# ---------------------------------------------------------------------------
+class _FakeRetriever:
+    def __init__(self, *a, **k): pass
+    def query(self, *a, **k): return []
+
+def _fake_corpus_lookup(*a, **k):
+    return []  # falsy → chat.py skips the fast-path table entirely
+
+def _fake_format_context(*a, **k):
+    return ""
+
+def _fake_execute(text, *a, **k):
+    return "[no executable code found]"  # chat.py checks startswith("[no executable")
+
+_rag        = types.ModuleType("rag")
+_rag_cl     = types.ModuleType("rag.corpus_lookup")
+_rag_ret    = types.ModuleType("rag.retrieve")
+_rag_tool   = types.ModuleType("rag.tool_exec")
+
+_rag_cl.lookup         = _fake_corpus_lookup
+_rag_ret.Retriever     = _FakeRetriever
+_rag_ret.format_context = _fake_format_context
+_rag_tool.execute      = _fake_execute
+
+sys.modules.update({
+    "rag": _rag, "rag.corpus_lookup": _rag_cl,
+    "rag.retrieve": _rag_ret, "rag.tool_exec": _rag_tool,
+})
 
 # ---------------------------------------------------------------------------
 # Run the real chat.py
@@ -121,5 +154,4 @@ if "--model" not in sys.argv:
 if "--no-rag" not in sys.argv:
     sys.argv.append("--no-rag")
 
-import runpy
 runpy.run_path(str(chat_path), run_name="__main__")
