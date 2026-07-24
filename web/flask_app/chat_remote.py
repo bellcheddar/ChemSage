@@ -186,6 +186,9 @@ sys.modules["rag.tool_exec"] = _rag_tool
 # Run the real chat.py
 # ---------------------------------------------------------------------------
 
+# Suppress prompt_toolkit bottom toolbar — renders as a stray blue bar in xterm
+os.environ["CHEMSAGE_NO_TOOLBAR"] = "1"
+
 # Inject flags chat.py requires; --no-rag avoids ChromaDB/sentence-transformers on the droplet
 if "--model" not in sys.argv:
     sys.argv += ["--model", "chem_sage_32b_v5"]

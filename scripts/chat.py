@@ -858,10 +858,16 @@ def chat_loop(
     _console.print()
 
     history: list[dict] = []
+    # Bottom toolbar is disabled in web/PTY sessions (rendered as a stray bar
+    # inside the xterm canvas). Set CHEMSAGE_NO_TOOLBAR=1 to suppress it.
+    _toolbar = (
+        None if os.environ.get("CHEMSAGE_NO_TOOLBAR")
+        else _make_toolbar(history, model_name, rag_active=retriever is not None)
+    )
     session = PromptSession(
         history=InMemoryHistory(),
         style=_PT_STYLE,
-        bottom_toolbar=_make_toolbar(history, model_name, rag_active=retriever is not None),
+        bottom_toolbar=_toolbar,
         completer=_SLASH_COMPLETER,
         complete_while_typing=False,
     )

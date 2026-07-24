@@ -48,16 +48,15 @@
       padding-bottom: env(safe-area-inset-bottom);
     }
 
-    /* ── header: keyboard toggle + connection only ── */
+    /* ── header: blends into terminal bg, just carries conn status ── */
     header {
-      flex: 0 0 28px;
+      flex: 0 0 26px;
       display: flex;
       align-items: center;
       justify-content: flex-end;
       gap: 8px;
-      padding: 0 10px;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
+      padding: 0 12px;
+      background: var(--bg);    /* same as terminal — no visible bar */
     }
 
     #kbd-btn {
@@ -77,42 +76,31 @@
     #kbd-btn:active { background: var(--border); }
     @media (hover: none) and (pointer: coarse) { #kbd-btn { display: flex; } }
 
-    .conn-wrap {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-    }
+    .conn-wrap { display: flex; align-items: center; gap: 5px; }
     .conn-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 50%;
+      width: 7px; height: 7px; border-radius: 50%;
       background: var(--warn);
       transition: background 0.3s;
     }
-    .conn-dot.connected    { background: var(--ok);    box-shadow: 0 0 5px rgba(63,185,80,0.45); }
+    .conn-dot.connected    { background: var(--ok); box-shadow: 0 0 5px rgba(63,185,80,0.5); }
     .conn-dot.disconnected { background: var(--danger); }
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
     .conn-dot.connecting   { animation: pulse 1s infinite; }
-    .conn-label {
-      font-size: 0.63rem;
-      color: var(--muted);
-      white-space: nowrap;
-    }
+    .conn-label { font-size: 0.63rem; color: var(--muted); white-space: nowrap; }
     @media (max-width: 480px) { .conn-label { display: none; } }
 
-    /* ── terminal container ── */
+    /* ── terminal ── */
     #term-wrap {
       flex: 1 1 0;
       min-height: 0;
       position: relative;
       overflow: hidden;
       background: var(--bg);
-      padding: 3px 5px;
+      padding: 0 5px;
     }
-
     #terminal { width: 100%; height: 100%; }
 
-    /* ── footer: two rows ── */
+    /* ── footer: two rows, generous sizing ── */
     footer {
       flex-shrink: 0;
       background: var(--surface);
@@ -125,84 +113,59 @@
     .f-row {
       display: flex;
       align-items: center;
-      padding: 0 10px;
-      height: 20px;
-      gap: 6px;
+      padding: 0 14px;
+      height: 28px;
+      gap: 8px;
       flex-shrink: 0;
     }
-    .f-row + .f-row { border-top: 1px solid rgba(255,255,255,0.04); }
-    .f-row-spec { background: rgba(255,255,255,0.02); }
+    .f-row-spec  { background: rgba(255,255,255,0.025); }
+    .f-row-links { border-top: 1px solid rgba(255,255,255,0.05); }
 
-    .f-model {
-      font-size: 0.61rem;
-      color: var(--faint);
-      white-space: nowrap;
-    }
-    .f-sep { font-size: 0.61rem; color: var(--faint); }
-    .f-link {
-      font-size: 0.61rem;
-      color: var(--muted);
-      text-decoration: none;
-      white-space: nowrap;
+    .f-model { font-size: 0.69rem; color: var(--faint); white-space: nowrap; }
+    .f-sep   { font-size: 0.69rem; color: var(--faint); flex-shrink: 0; }
+    .f-link  {
+      font-size: 0.69rem; color: var(--muted);
+      text-decoration: none; white-space: nowrap;
     }
     .f-link:hover { color: var(--accent); }
     .f-right { margin-left: auto; }
-    .f-hint {
-      font-size: 0.61rem;
-      color: var(--faint);
-      white-space: nowrap;
-    }
-    .f-hint code {
-      color: rgba(0,212,255,0.7);
-      font-family: inherit;
-    }
+    .f-hint  { font-size: 0.69rem; color: var(--faint); white-space: nowrap; }
+    .f-hint code { color: rgba(0,212,255,0.7); font-family: inherit; }
 
-    /* cold-start pill — always visible */
+    /* cold-start pill */
     .pill-cold {
-      font-size: 0.58rem;
-      font-weight: 500;
-      padding: 1px 6px;
-      border-radius: 20px;
+      font-size: 0.62rem; font-weight: 500;
+      padding: 2px 8px; border-radius: 20px;
       background: rgba(240,136,62,0.1);
-      border: 1px solid rgba(240,136,62,0.25);
+      border: 1px solid rgba(240,136,62,0.28);
       color: var(--warn);
-      white-space: nowrap;
-      flex-shrink: 0;
+      white-space: nowrap; flex-shrink: 0;
     }
 
     /* thinking pill — hidden until prompt sent */
     #thinking-pill {
       display: none;
-      font-size: 0.58rem;
-      font-weight: 500;
-      padding: 1px 7px;
-      border-radius: 20px;
+      font-size: 0.62rem; font-weight: 500;
+      padding: 2px 8px; border-radius: 20px;
       background: rgba(63,185,80,0.1);
       border: 1px solid rgba(63,185,80,0.28);
       color: var(--ok);
-      white-space: nowrap;
-      flex-shrink: 0;
+      white-space: nowrap; flex-shrink: 0;
     }
 
-    @media (max-width: 480px) {
-      .f-row-links .f-link:not(:first-of-type),
-      .f-row-links .f-sep { display: none; }
-      .f-row-links .f-link:first-of-type { display: block; }
+    @media (max-width: 500px) {
+      .f-row-links .f-link + .f-sep,
+      .f-row-links .f-link + .f-sep + .f-link { display: none; }
     }
 
     /* ── loading overlay ── */
     #overlay {
-      position: absolute;
-      inset: 0;
-      background: rgba(13,17,23,0.88);
-      backdrop-filter: blur(3px);
-      -webkit-backdrop-filter: blur(3px);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      z-index: 50;
+      position: absolute; inset: 0;
+      background: rgba(13,17,23,0.9);
+      backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 12px; z-index: 50;
       transition: opacity 0.25s;
     }
     #overlay.hidden { opacity: 0; pointer-events: none; }
@@ -218,8 +181,7 @@
 
     /* ── mobile keyboard textarea ── */
     #mkbd {
-      position: fixed;
-      left: -9999px; top: 0;
+      position: fixed; left: -9999px; top: 0;
       width: 1px; height: 1px;
       opacity: 0; border: none; outline: none; resize: none;
       -webkit-user-select: text; user-select: text;
@@ -228,6 +190,7 @@
 </head>
 <body>
 
+  <!-- header: invisible strip carrying just the conn dot + mobile kbd -->
   <header>
     <button id="kbd-btn" aria-label="Show keyboard">⌨</button>
     <span class="conn-wrap">
@@ -254,11 +217,11 @@
     </div>
     <!-- row 2: external links -->
     <div class="f-row f-row-links">
-      <a class="f-link" href="https://marcdeller.com"                         target="_blank" rel="noopener">marcdeller.com</a>
+      <a class="f-link" href="https://marcdeller.com"                  target="_blank" rel="noopener">marcdeller.com</a>
       <span class="f-sep">·</span>
-      <a class="f-link" href="https://github.com/bellcheddar/ChemSage"        target="_blank" rel="noopener">GitHub</a>
+      <a class="f-link" href="https://github.com/bellcheddar/ChemSage" target="_blank" rel="noopener">GitHub</a>
       <span class="f-sep">·</span>
-      <a class="f-link" href="https://huggingface.co/Dellboy"                 target="_blank" rel="noopener">HuggingFace</a>
+      <a class="f-link" href="https://huggingface.co/Dellboy"          target="_blank" rel="noopener">HuggingFace</a>
     </div>
   </footer>
 
@@ -270,7 +233,7 @@
     const vw = window.innerWidth;
     const fontSize = vw < 400 ? 9 : vw < 500 ? 10 : vw < 700 ? 11 : vw < 900 ? 13 : 14;
 
-    // ── terminal init ──────────────────────────────────────────────────────────
+    // ── terminal ───────────────────────────────────────────────────────────────
     const term = new Terminal({
       theme: {
         background:    '#0d1117', foreground:    '#e6edf3',
@@ -308,28 +271,55 @@
     }
 
     // ── Thinking pill ──────────────────────────────────────────────────────────
+    // Strategy: show on Enter; hide only after BOTH conditions met:
+    //   1. Pill has been visible for at least MIN_MS milliseconds
+    //   2. PTY data has gone quiet for DEBOUNCE_MS after that minimum
+    // This survives the immediate PTY echo + toolbar redraw bursts (< 300 ms)
+    // and the full cold-start silence (up to 60 s).
+
+    const MIN_MS      = 5000;   // never hide within first 5 s
+    const DEBOUNCE_MS = 1200;   // hide 1.2 s after last data once MIN_MS passed
+
     const thinkingPill = document.getElementById('thinking-pill');
-    let thinkingDots   = 0;
-    let thinkingTimer  = null;
+    let thinkingActive  = false;
     let thinkingShownAt = 0;
+    let thinkingAnim    = null;
+    let thinkingDebounce = null;
+    let thinkingDots    = 0;
 
     function showThinking() {
-      thinkingDots = 0;
-      thinkingPill.textContent = 'Thinking';
-      thinkingPill.style.display = 'inline-block';
+      if (thinkingActive) return;
+      thinkingActive  = true;
       thinkingShownAt = Date.now();
-      thinkingTimer = setInterval(() => {
+      thinkingDots    = 0;
+      thinkingPill.textContent  = 'Thinking';
+      thinkingPill.style.display = 'inline-block';
+      clearInterval(thinkingAnim);
+      thinkingAnim = setInterval(() => {
         thinkingDots = (thinkingDots + 1) % 4;
         thinkingPill.textContent = 'Thinking' + '.'.repeat(thinkingDots);
       }, 400);
     }
 
+    function poke() {
+      // Called on every ws.onmessage while pill is active.
+      // Resets the debounce; only arms it after MIN_MS has elapsed.
+      if (!thinkingActive) return;
+      clearTimeout(thinkingDebounce);
+      if (Date.now() - thinkingShownAt >= MIN_MS) {
+        thinkingDebounce = setTimeout(hideThinking, DEBOUNCE_MS);
+      }
+    }
+
     function hideThinking() {
-      if (thinkingTimer) { clearInterval(thinkingTimer); thinkingTimer = null; }
+      if (!thinkingActive) return;
+      thinkingActive = false;
+      clearInterval(thinkingAnim);
+      clearTimeout(thinkingDebounce);
       thinkingPill.style.display = 'none';
     }
 
-    // ── send keystrokes; show Thinking pill on Enter ───────────────────────────
+    // ── keystroke forwarding ───────────────────────────────────────────────────
     term.onData(data => {
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(data);
@@ -339,7 +329,7 @@
 
     term.onResize(() => sendResize());
 
-    // ── connect ────────────────────────────────────────────────────────────────
+    // ── WebSocket ──────────────────────────────────────────────────────────────
     requestAnimationFrame(() => requestAnimationFrame(() => {
       fitAddon.fit();
 
@@ -360,11 +350,7 @@
 
       ws.onmessage = e => {
         term.write(e.data);
-        // Hide Thinking pill once real response data arrives.
-        // 600 ms grace period absorbs the immediate PTY echo of the newline.
-        if (thinkingTimer && Date.now() - thinkingShownAt > 600) {
-          hideThinking();
-        }
+        poke();
       };
 
       ws.onclose = () => {
@@ -381,15 +367,13 @@
       };
     }));
 
-    // ── resize handling ────────────────────────────────────────────────────────
+    // ── resize ─────────────────────────────────────────────────────────────────
     let fitTimer;
     function scheduleFit(ms) {
       clearTimeout(fitTimer);
       fitTimer = setTimeout(() => { try { fitAddon.fit(); } catch(_){} }, ms ?? 40);
     }
-
     window.addEventListener('resize', () => scheduleFit());
-
     if (window.visualViewport)
       window.visualViewport.addEventListener('resize', () => scheduleFit());
 
@@ -399,13 +383,10 @@
       if (Math.abs(w - lastVw) < 20) return;
       lastVw = w;
       const sz = w < 400 ? 9 : w < 500 ? 10 : w < 700 ? 11 : w < 900 ? 13 : 14;
-      if (term.options.fontSize !== sz) {
-        term.options.fontSize = sz;
-        scheduleFit(80);
-      }
+      if (term.options.fontSize !== sz) { term.options.fontSize = sz; scheduleFit(80); }
     });
 
-    // ── mobile keyboard capture ────────────────────────────────────────────────
+    // ── mobile keyboard ────────────────────────────────────────────────────────
     const mkbd = document.getElementById('mkbd');
 
     const KEYS = {
@@ -428,9 +409,7 @@
     mkbd.addEventListener('input', () => {
       const v = mkbd.value;
       if (v && ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(v);
-        mkbd.value = '';
-        // treat soft-keyboard submit (virtual Enter) as Enter
+        ws.send(v); mkbd.value = '';
         if (v.endsWith('\n') || v.endsWith('\r')) showThinking();
       }
     });
@@ -443,8 +422,7 @@
 
     document.getElementById('term-wrap').addEventListener('touchend', e => {
       if (e.target.tagName === 'A') return;
-      e.preventDefault();
-      showKbd();
+      e.preventDefault(); showKbd();
     }, { passive: false });
 
     document.getElementById('kbd-btn').addEventListener('click', showKbd);
