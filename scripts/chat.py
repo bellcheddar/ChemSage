@@ -247,8 +247,6 @@ def _print_banner() -> None:
         "[/dim]"
     )
     _console.print()
-    _console.rule(style="dim")
-    _console.print()
 
 
 def _print_goodbye() -> None:
@@ -588,9 +586,13 @@ def _print_response(text: str) -> None:
 
 def _print_stats(n_tokens: int, elapsed: float) -> None:
     tok_per_s = n_tokens / elapsed if elapsed > 0 else 0
-    _console.print(
-        f"\n  [dim]⚡ {n_tokens} tok · {tok_per_s:.1f} tok/s · {elapsed:.1f}s[/dim]"
-    )
+    stats_str = f"{n_tokens} tok · {tok_per_s:.1f} tok/s · {elapsed:.1f}s"
+    # OSC 9999 carries stats to the browser footer pill (ignored by real terminals).
+    sys.stdout.write(f"\x1b]9999;stats:{stats_str}\x07")
+    sys.stdout.flush()
+    # In web sessions suppress the terminal print (pill shows it instead).
+    if not os.environ.get("CHEMSAGE_NO_TOOLBAR"):
+        _console.print(f"\n  [dim]⚡ {stats_str}[/dim]")
 
 
 # ---------------------------------------------------------------------------
@@ -771,14 +773,7 @@ def chat_loop(
         with _quiet():
             model, tokenizer = load(model_path)
     model_name = Path(model_path).name
-    _console.print(
-        f"  [chemsage.ok]✓[/chemsage.ok]  [chemsage.label]Model   [/chemsage.label]  {escape(model_name)}"
-    )
     model_gb = sum(p.stat().st_size for p in Path(model_path).rglob("*") if p.is_file()) / 1e9
-    _console.print(
-        f"  [chemsage.ok]✓[/chemsage.ok]  [chemsage.label]Disk    [/chemsage.label]  "
-        f"{model_gb:.1f} GB  ·  32B parameters  ·  4-bit quantised"
-    )
 
     # ── Retriever ────────────────────────────────────────────────────────────
     retriever: Retriever | None = None
@@ -826,10 +821,6 @@ def chat_loop(
     except Exception:
         _iters, _rank, _lr, _ctx, _ltype = 750, 32, 2e-5, 2048, "RSLoRA"
     _lr_str = f"{_lr:.0e}" if isinstance(_lr, float) else str(_lr)
-    _console.print(
-        f"  [chemsage.ok]✓[/chemsage.ok]  [chemsage.label]Training[/chemsage.label]  "
-        f"{_iters:,} iters  ·  {_ltype} rank {_rank}  ·  lr {_lr_str}  ·  ctx {_ctx:,}"
-    )
 
     # ── Session info dict (passed to /info) ───────────────────────────────────
     _session_info = {
@@ -848,8 +839,6 @@ def chat_loop(
     }
 
     # ── Ready ─────────────────────────────────────────────────────────────────
-    _console.print()
-    _console.rule(style="dim")
     _console.print()
     _console.print(
         "  [dim]Type your question and press Enter.  "

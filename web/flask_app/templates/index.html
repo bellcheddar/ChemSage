@@ -153,6 +153,17 @@
       white-space: nowrap; flex-shrink: 0;
     }
 
+    /* stats pill — shown after response, updated each turn */
+    #stats-pill {
+      display: none;
+      font-size: 0.62rem; font-weight: 500;
+      padding: 2px 8px; border-radius: 20px;
+      background: rgba(0,212,255,0.07);
+      border: 1px solid rgba(0,212,255,0.2);
+      color: rgba(0,212,255,0.75);
+      white-space: nowrap; flex-shrink: 0;
+    }
+
     @media (max-width: 500px) {
       .f-row-links .f-link + .f-sep,
       .f-row-links .f-link + .f-sep + .f-link { display: none; }
@@ -210,9 +221,10 @@
   <footer>
     <!-- row 1: model spec + status pills + /help -->
     <div class="f-row f-row-spec">
-      <span class="f-model">32B · QLoRA R5 · ZeroGPU A10G</span>
+      <span class="f-model">chem_sage_32b_v5 · 4-bit · RSLoRA r32 · ZeroGPU A10G</span>
       <span class="pill-cold">cold start ~30 s</span>
       <span id="thinking-pill">Thinking</span>
+      <span id="stats-pill"></span>
       <span class="f-hint f-right">Type <code>/help</code> for commands</span>
     </div>
     <!-- row 2: external links -->
@@ -263,36 +275,25 @@
     term.loadAddon(webLinksAddon);
     term.open(document.getElementById('terminal'));
 
-    let ws;
+    // ── Thinking pill ─────────────────────────────────────────────────────────
+    // Show on Enter; never hide before MIN_MS; hide DEBOUNCE_MS after data quiets.
+    // OSC 9999 from chat.py also calls hideThinking() directly when stats arrive.
+    const MIN_MS      = 5000;  // never hide within first 5 s
+    const DEBOUNCE_MS = 1200;  // hide 1.2 s after last data once MIN_MS passed
 
-    function sendResize() {
-      if (ws && ws.readyState === WebSocket.OPEN)
-        ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
-    }
-
-    // ── Thinking pill ──────────────────────────────────────────────────────────
-    // Strategy: show on Enter; hide only after BOTH conditions met:
-    //   1. Pill has been visible for at least MIN_MS milliseconds
-    //   2. PTY data has gone quiet for DEBOUNCE_MS after that minimum
-    // This survives the immediate PTY echo + toolbar redraw bursts (< 300 ms)
-    // and the full cold-start silence (up to 60 s).
-
-    const MIN_MS      = 5000;   // never hide within first 5 s
-    const DEBOUNCE_MS = 1200;   // hide 1.2 s after last data once MIN_MS passed
-
-    const thinkingPill = document.getElementById('thinking-pill');
-    let thinkingActive  = false;
-    let thinkingShownAt = 0;
-    let thinkingAnim    = null;
+    const thinkingPill   = document.getElementById('thinking-pill');
+    let thinkingActive   = false;
+    let thinkingShownAt  = 0;
+    let thinkingAnim     = null;
     let thinkingDebounce = null;
-    let thinkingDots    = 0;
+    let thinkingDots     = 0;
 
     function showThinking() {
       if (thinkingActive) return;
       thinkingActive  = true;
       thinkingShownAt = Date.now();
       thinkingDots    = 0;
-      thinkingPill.textContent  = 'Thinking';
+      thinkingPill.textContent   = 'Thinking';
       thinkingPill.style.display = 'inline-block';
       clearInterval(thinkingAnim);
       thinkingAnim = setInterval(() => {
@@ -302,13 +303,10 @@
     }
 
     function poke() {
-      // Called on every ws.onmessage while pill is active.
-      // Resets the debounce; only arms it after MIN_MS has elapsed.
       if (!thinkingActive) return;
       clearTimeout(thinkingDebounce);
-      if (Date.now() - thinkingShownAt >= MIN_MS) {
+      if (Date.now() - thinkingShownAt >= MIN_MS)
         thinkingDebounce = setTimeout(hideThinking, DEBOUNCE_MS);
-      }
     }
 
     function hideThinking() {
@@ -317,6 +315,26 @@
       clearInterval(thinkingAnim);
       clearTimeout(thinkingDebounce);
       thinkingPill.style.display = 'none';
+    }
+
+    // ── Stats pill: driven by OSC 9999 from chat.py ────────────────────────────
+    // chat.py emits \x1b]9999;stats:N tok · X tok/s · Ys\x07 after each response.
+    // xterm.js swallows the sequence (never renders it); we intercept it here.
+    const statsPill = document.getElementById('stats-pill');
+    term.parser.registerOscHandler(9999, data => {
+      if (data.startsWith('stats:')) {
+        statsPill.textContent = '⚡ ' + data.slice(6);
+        statsPill.style.display = 'inline-block';
+        hideThinking();   // response done — hide Thinking pill
+      }
+      return true;
+    });
+
+    let ws;
+
+    function sendResize() {
+      if (ws && ws.readyState === WebSocket.OPEN)
+        ws.send(JSON.stringify({ type: 'resize', cols: term.cols, rows: term.rows }));
     }
 
     // ── keystroke forwarding ───────────────────────────────────────────────────
