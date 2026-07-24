@@ -233,8 +233,6 @@ def _print_banner() -> None:
 
     _console.print()
     _console.print(
-        "  [chemsage.label]ChemSage[/chemsage.label]"
-        "  [dim]·[/dim]"
         "  [dim]Drug Discovery AI[/dim]"
         "  [dim]·[/dim]"
         "  [dim]Qwen2.5-32B · QLoRA · RAG[/dim]"
@@ -244,13 +242,6 @@ def _print_banner() -> None:
         "  [dim][link=https://github.com/bellcheddar/ChemSage]GitHub[/link][/dim]"
         "  [dim]·[/dim]"
         "  [dim][link=https://huggingface.co/Dellboy]HuggingFace[/link][/dim]"
-    )
-    _console.print(
-        "  [dim]Built by "
-        "[link=https://marcdeller.com]Marc C. Deller, D.Phil.[/link]"
-        "  ·  "
-        "[link=mailto:marc@marcdeller.com]marc@marcdeller.com[/link]"
-        "[/dim]"
     )
     _console.print()
 
