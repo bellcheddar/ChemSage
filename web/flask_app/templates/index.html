@@ -114,27 +114,21 @@
       display: flex;
       align-items: center;
       padding: 0 14px;
-      height: 28px;
+      height: 36px;
       gap: 8px;
       flex-shrink: 0;
     }
     .f-row-spec  { background: rgba(255,255,255,0.025); }
-    .f-row-links { border-top: 1px solid rgba(255,255,255,0.05); }
 
-    .f-model { font-size: 0.69rem; color: var(--faint); white-space: nowrap; }
-    .f-sep   { font-size: 0.69rem; color: var(--faint); flex-shrink: 0; }
-    .f-link  {
-      font-size: 0.69rem; color: var(--muted);
-      text-decoration: none; white-space: nowrap;
-    }
-    .f-link:hover { color: var(--accent); }
+    .f-model { font-size: 0.82rem; color: var(--faint); white-space: nowrap; }
+    .f-sep   { font-size: 0.82rem; color: var(--faint); flex-shrink: 0; }
     .f-right { margin-left: auto; }
-    .f-hint  { font-size: 0.69rem; color: var(--faint); white-space: nowrap; }
+    .f-hint  { font-size: 0.82rem; color: var(--faint); white-space: nowrap; }
     .f-hint code { color: rgba(0,212,255,0.7); font-family: inherit; }
 
     /* cold-start pill */
     .pill-cold {
-      font-size: 0.62rem; font-weight: 500;
+      font-size: 0.74rem; font-weight: 500;
       padding: 2px 8px; border-radius: 20px;
       background: rgba(240,136,62,0.1);
       border: 1px solid rgba(240,136,62,0.28);
@@ -145,7 +139,7 @@
     /* thinking pill — hidden until prompt sent */
     #thinking-pill {
       display: none;
-      font-size: 0.62rem; font-weight: 500;
+      font-size: 0.74rem; font-weight: 500;
       padding: 2px 8px; border-radius: 20px;
       background: rgba(63,185,80,0.1);
       border: 1px solid rgba(63,185,80,0.28);
@@ -156,17 +150,12 @@
     /* stats pill — shown after response, updated each turn */
     #stats-pill {
       display: none;
-      font-size: 0.62rem; font-weight: 500;
+      font-size: 0.74rem; font-weight: 500;
       padding: 2px 8px; border-radius: 20px;
       background: rgba(0,212,255,0.07);
       border: 1px solid rgba(0,212,255,0.2);
       color: rgba(0,212,255,0.75);
       white-space: nowrap; flex-shrink: 0;
-    }
-
-    @media (max-width: 500px) {
-      .f-row-links .f-link + .f-sep,
-      .f-row-links .f-link + .f-sep + .f-link { display: none; }
     }
 
     /* ── loading overlay ── */
@@ -219,21 +208,12 @@
   </div>
 
   <footer>
-    <!-- row 1: model spec + status pills + /help -->
     <div class="f-row f-row-spec">
       <span class="f-model">chem_sage_32b_v5 · 4-bit · RSLoRA r32 · ZeroGPU A10G</span>
       <span class="pill-cold">cold start ~30 s</span>
       <span id="thinking-pill">Thinking</span>
       <span id="stats-pill"></span>
       <span class="f-hint f-right">Type <code>/help</code> for commands</span>
-    </div>
-    <!-- row 2: external links -->
-    <div class="f-row f-row-links">
-      <a class="f-link" href="https://marcdeller.com"                  target="_blank" rel="noopener">marcdeller.com</a>
-      <span class="f-sep">·</span>
-      <a class="f-link" href="https://github.com/bellcheddar/ChemSage" target="_blank" rel="noopener">GitHub</a>
-      <span class="f-sep">·</span>
-      <a class="f-link" href="https://huggingface.co/Dellboy"          target="_blank" rel="noopener">HuggingFace</a>
     </div>
   </footer>
 
