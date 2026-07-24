@@ -49,6 +49,7 @@ from rich.console import Console
 from rich.live import Live
 from rich.markdown import Markdown
 from rich.markup import escape
+from rich.padding import Padding
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.table import Table
@@ -574,11 +575,14 @@ def _print_lookup(results: list) -> None:
             _console.print(f"  [dim]Enter a number between 1 and {len(results)}, or q to quit.[/dim]")
 
 
-def _print_response(text: str) -> None:
+def _print_divider() -> None:
     _console.print()
     _console.rule("[chemsage.header] ChemSage [/chemsage.header]", style="dim cyan")
+
+
+def _print_response(text: str) -> None:
     _console.print()
-    _console.print(Markdown(text, code_theme="monokai"))
+    _console.print(Padding(Markdown(text, code_theme="monokai"), (0, 0, 0, 2)))
 
 
 def _print_stats(n_tokens: int, elapsed: float) -> None:
@@ -866,8 +870,6 @@ def chat_loop(
         )
 
         _console.print()
-        _console.rule("[chemsage.header] ChemSage [/chemsage.header]", style="dim cyan")
-        _console.print()
 
         full_text = ""
         t0 = time.time()
@@ -888,9 +890,9 @@ def chat_loop(
                     tok = chunk.text if hasattr(chunk, "text") else str(chunk)
                     if tok:
                         full_text += tok
-                        live.update(Text(full_text))
+                        live.update(Padding(Text(full_text), (0, 0, 0, 2)))
                 if full_text:
-                    live.update(Markdown(full_text, code_theme="monokai"))
+                    live.update(Padding(Markdown(full_text, code_theme="monokai"), (0, 0, 0, 2)))
         else:
             # Fallback: blocking generate with spinner
             with _console.status(
@@ -903,7 +905,7 @@ def chat_loop(
                     sampler=make_sampler(temp=0.15),
                     logits_processors=make_logits_processors(repetition_penalty=1.15),
                 )
-            _console.print(Markdown(full_text, code_theme="monokai"))
+            _console.print(Padding(Markdown(full_text, code_theme="monokai"), (0, 0, 0, 2)))
 
         return full_text, time.time() - t0
 
@@ -914,7 +916,7 @@ def chat_loop(
 
     while True:
         try:
-            user_input = session.prompt(HTML("<b>You</b>: ")).strip()
+            user_input = session.prompt(HTML("  <b>You</b>: ")).strip()
         except (KeyboardInterrupt, EOFError):
             _print_goodbye()
             break
@@ -946,6 +948,7 @@ def chat_loop(
                     border_style="yellow",
                     padding=(0, 1),
                 ))
+            _print_divider()
             # Replace last assistant turn in history
             if len(history) >= 2:
                 history[-1] = {"role": "assistant", "content": response}
@@ -958,6 +961,7 @@ def chat_loop(
         # Easter egg
         if re.search(r"\badam\b.*\basshat\b", user_input, re.IGNORECASE):
             _print_response("Yes! Absolutely! A very big one.")
+            _print_divider()
             history.append({"role": "user",      "content": user_input})
             history.append({"role": "assistant", "content": "Yes! Absolutely! A very big one."})
             continue
@@ -1027,6 +1031,7 @@ def chat_loop(
                 border_style="yellow",
                 padding=(0, 1),
             ))
+        _print_divider()
 
         history.append({"role": "user",      "content": user_input})
         history.append({"role": "assistant", "content": response})
