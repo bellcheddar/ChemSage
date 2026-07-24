@@ -2,11 +2,11 @@
 
 > **A hybrid, chemically aware LLM for drug discovery: RAG for facts, a QLoRA-tuned model for behaviour, and live RDKit/PyMOL tool calls for chemical truth. Fine-tuned and served locally on Apple Silicon with MLX-LM.**
 
-![MLX-LM](https://img.shields.io/badge/MLX--LM-Apple%20Silicon-000000?logo=apple&logoColor=white) ![fine-tune](https://img.shields.io/badge/fine--tune-QLoRA-467FF7) ![base](https://img.shields.io/badge/base-Qwen2.5--32B-00897B) ![RAG](https://img.shields.io/badge/RAG-ChromaDB%20+%20RDKit-9b51e0) ![models](https://img.shields.io/badge/models-Hugging%20Face-FFD21E?logo=huggingface&logoColor=black) ![author](https://img.shields.io/badge/author-Marc%20C.%20Deller%2C%20D.Phil.-1C244B)
+[![live](https://img.shields.io/badge/live-chemsage.mdeller.com-00d084)](https://chemsage.mdeller.com) ![MLX-LM](https://img.shields.io/badge/MLX--LM-Apple%20Silicon-000000?logo=apple&logoColor=white) ![fine-tune](https://img.shields.io/badge/fine--tune-QLoRA-467FF7) ![base](https://img.shields.io/badge/base-Qwen2.5--32B-00897B) ![RAG](https://img.shields.io/badge/RAG-ChromaDB%20+%20RDKit-9b51e0) ![models](https://img.shields.io/badge/models-Hugging%20Face-FFD21E?logo=huggingface&logoColor=black) ![author](https://img.shields.io/badge/author-Marc%20C.%20Deller%2C%20D.Phil.-1C244B)
 
 <table>
 <tr>
-<td>🌐 <b>Website</b></td><td><a href="https://marcdeller.com" target="_blank" rel="noopener noreferrer">marcdeller.com</a></td>
+<td>🌐 <b>Website</b></td><td><a href="https://chemsage.mdeller.com" target="_blank" rel="noopener noreferrer">chemsage.mdeller.com</a></td>
 <td>✉️ <b>Contact</b></td><td><a href="mailto:marc@marcdeller.com">marc@marcdeller.com</a></td>
 <td>🐙 <b>GitHub</b></td><td><a href="https://github.com/bellcheddar/ChemSage" target="_blank" rel="noopener noreferrer">bellcheddar/ChemSage</a></td>
 </tr>
@@ -23,7 +23,9 @@ cannot see your private SAR data. ChemSage fixes both by separating concerns: vo
 lives in retrieval, stable behaviour lives in the weights, and deterministic chemical facts are
 computed live by trusted tools rather than guessed. It is useful for: interrogating your own
 assay and SAR data, triaging compounds, generating correct PyMOL/RDKit scripts, and interpreting
-docking and interaction output, all on local hardware.
+docking and interaction output, all on local hardware. A live, no-install terminal session
+against the real fine-tuned model runs at
+**[chemsage.mdeller.com](https://chemsage.mdeller.com)** (see **Web deployment** below).
 
 **Initial idea:** Fed up with token, model and upload document limits? Then why not run your own
 AI models on Mac hardware? Thanks to [@ai.christianson](https://www.tiktok.com/@ai.christianson)
@@ -303,6 +305,12 @@ The `data/corpus/` directory contains the full retrieval knowledge base: tool re
 
 ## 📝 Recent changes
 
+### Live web deployment (2026-07-24)
+
+- **chemsage.mdeller.com is live.** The real `scripts/chat.py` CLI now runs in the browser via an xterm.js terminal, bridged over WebSocket to a server-side PTY — same Rich output, corpus tables, and slash commands as the local CLI, not a rebuilt chat-bubble UI.
+- **No local GPU on the droplet:** `mlx_lm`'s `stream_generate`/`generate` are patched at import time (`chat_remote.py`) to call a HuggingFace Space running the real fused 32B model on ZeroGPU, then the unmodified `chat.py` is run unaware of the substitution.
+- **Serving stack:** gunicorn (`gevent` worker, 1 worker / 100 connections — a PTY session is I/O-bound, not CPU-bound) behind nginx with WebSocket-upgrade support on `/ws`, systemd service, Let's Encrypt TLS. Full detail in **Web deployment** below.
+
 ### Chat CLI and dependency fixes (2026-06-30)
 
 - **mlx-lm 0.31.3 API fix (`scripts/chat.py`):** `stream_generate()` and `generate()` no longer accept `verbose=False` as a keyword argument — removed from both call sites.
@@ -467,6 +475,30 @@ New scorecard features: per-class breakdown table (if test examples carry a `cla
 - ASCII art banner (ChemSage, `small_slant` font), Rich Markdown rendering, Rich `Table` corpus tables with rounded cyan borders
 - Column display config (`_COL_CFG`) maps all corpus column names to abbreviated headers and per-column max widths; ellipsis overflow keeps all rows single-line
 
+## 🌐 Web deployment
+
+**Live at [chemsage.mdeller.com](https://chemsage.mdeller.com).** Not a rebuilt chat-bubble
+interface: the browser gets a real terminal (xterm.js) connected over WebSocket to a
+server-side PTY running the actual, unmodified `scripts/chat.py` — the same Rich-rendered
+markdown, corpus tables, and slash commands (`/save`, `/info`, `/retry`, tab completion) as
+running it locally.
+
+**No GPU on the droplet.** `chat_remote.py` is a drop-in launcher: at import time it patches
+`mlx_lm.generate`/`mlx_lm.stream_generate` to call a HuggingFace Space running the real fused
+32B model on ZeroGPU (a serverless, on-demand GPU allocation), then runs `chat.py` completely
+unaware anything is different. `chat.py` itself is never modified for the hosted path.
+
+**Serving stack:** gunicorn with a single `gevent` worker (100 concurrent connections) rather
+than `sync` workers — a terminal session is I/O-bound (waiting on the remote model and on
+keystrokes), not CPU-bound, so one greenlet-based worker serves many concurrent sessions
+cheaply. nginx reverse-proxies both the WebSocket endpoint (`/ws`, with `Upgrade`/`Connection`
+headers and a long read/send timeout for idle-but-open sessions) and the static app shell,
+behind a Let's Encrypt certificate. Runs as a dedicated systemd service on the droplet
+alongside AlphaFraud and BoltzMaker's own web apps.
+
+**Source isolation:** the web app (`web/flask_app/`) lives on a separate `web` git
+branch/worktree, so it never touches the tested training/eval code on `main`.
+
 ## 🧱 Stack
 
 Everything runs locally on **Apple Silicon** via **MLX-LM** (`mlx_lm.lora` to train, `mlx_lm.fuse`
@@ -550,9 +582,7 @@ details), `/retry` (regenerate last response).
 - [ ] Create `scripts/run_eval.sh` (start server, wait, run eval, stop server)
 
 ### Publishing and deployment
-- [ ] **Gradio web UI on marcdeller.com** — wrap `scripts/chat.py` in a Gradio `ChatInterface` (streaming supported via `gr.ChatInterface` + generator); deploy behind a reverse proxy (nginx) on the marcdeller.com VPS alongside the blog; single-command launch with a systemd service or `screen` session.
-- [ ] **HuggingFace Spaces demo** — lightweight Gradio Space pointing at a hosted inference endpoint (HF Inference API or a self-hosted `mlx_lm.server` tunnelled via `ngrok`/Cloudflare Tunnel); lets visitors try the model without any local setup.
-- [ ] **Cloudflare Tunnel for live demos** — expose the local `mlx_lm.server` endpoint securely via `cloudflared tunnel` without opening a port; useful for sharing a live session during talks or blog posts without a permanent cloud deployment.
+- [x] **Live web deployment at chemsage.mdeller.com** — shipped as an xterm.js terminal in the browser, not a chat-bubble Gradio UI: the real, unmodified `scripts/chat.py` runs server-side in a PTY, bridged to the browser over a WebSocket, so the hosted session is identical to running the CLI locally (same slash commands, same Rich rendering). No local GPU on the droplet, so `mlx_lm`'s `generate`/`stream_generate` are patched at import time to call a HuggingFace Space running the real fused model on ZeroGPU instead — see **Web deployment** below.
 - [ ] **Packaged CLI installer** — publish `chat.py` as a `pipx`-installable tool (`pyproject.toml` entry point); users with a local Qwen 32B model can `pipx install chemsage` and point it at their own `mlx_lm.server` endpoint.
 
 ### Round 6 (planned)
